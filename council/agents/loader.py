@@ -27,6 +27,7 @@ class RoleConfig:
     description: str
     system_prompt: str
     focus_areas: list[str] = field(default_factory=list)
+    default_skills: list[str] = field(default_factory=list)
     round1_instructions: str = ""
     round2_instructions: str = ""
     round3_instructions: str = ""
@@ -42,6 +43,7 @@ class RoleConfig:
             description=data.get("description", "").strip(),
             system_prompt=data.get("system_prompt", "").strip(),
             focus_areas=list(data.get("focus_areas", [])),
+            default_skills=list(data.get("default_skills", [])),
             round1_instructions=data.get("round1_instructions", "").strip(),
             round2_instructions=data.get("round2_instructions", "").strip(),
             round3_instructions=data.get("round3_instructions", "").strip(),

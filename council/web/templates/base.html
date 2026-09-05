@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AI Design Council{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <div class="shell">
+    <nav class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">AI</span>
+        <span class="brand-text">Design Council</span>
+      </div>
+      <a class="nav-link {{ 'active' if active_nav == 'meetings' else '' }}" href="/">Meetings</a>
+      <a class="nav-link {{ 'active' if active_nav == 'roles' else '' }}" href="/roles">Roles &amp; Skills</a>
+      <a class="nav-link {{ 'active' if active_nav == 'reports' else '' }}" href="/reports">Reports</a>
+      <a class="nav-link {{ 'active' if active_nav == 'settings' else '' }}" href="/settings">Settings</a>
+      <div class="sidebar-footer">
+        <span class="badge badge-mock">V0 · mock provider ready</span>
+      </div>
+    </nav>
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

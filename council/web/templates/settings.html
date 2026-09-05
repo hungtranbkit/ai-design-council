@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Settings</h1><p class="subtitle">Read-only V0 info. Configure real providers via .env, not here.</p></div>
+</div>
+
+<div class="card">
+  <div class="section-title">Version</div>
+  <p>{{ version }}</p>
+  <div class="section-title">Runs directory</div>
+  <p><code>{{ runs_dir }}</code></p>
+  <div class="section-title">Providers</div>
+  <ul class="observer-list">
+    {% for p in providers %}
+    <li><strong>{{ p.name }}</strong> - <span class="badge {{ 'badge-success' if p.status == 'ready' else 'badge-muted' }}">{{ p.status }}</span> - {{ p.reason }}</li>
+    {% endfor %}
+  </ul>
+  <p class="hint">To enable a real provider, copy <code>.env.example</code> to <code>.env</code> and fill in credentials, then restart <code>python -m council serve</code>.</p>
+</div>
+{% endblock %}

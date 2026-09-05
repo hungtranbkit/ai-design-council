@@ -14,6 +14,9 @@ focus_areas:
   - input validation and abuse resistance
   - authentication/authorization of any trust boundary (including realtime channels)
   - payment correctness (idempotency, double-charge prevention)
+default_skills:
+  - security_review
+  - qa_edge_cases
 round1_instructions: >
   Propose the QA/security requirements for this brief, independently. You
   cannot see any other agent's output. List requirements, decisions (with

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Reports</h1>
+    <p class="subtitle">Final reports and A/B comparisons produced so far.</p>
+  </div>
+</div>
+
+<div class="section-title">Final reports</div>
+{% if not meetings %}
+<div class="card empty-state">No completed runs yet.</div>
+{% endif %}
+{% for m in meetings %}
+<div class="card">
+  <div class="flex-between">
+    <strong>{{ m.run_id }}</strong>
+    <span class="badge badge-muted">{{ m.mode }}</span>
+  </div>
+  <p class="hint">{{ m.brief_excerpt }}</p>
+  <button class="btn btn-sm" onclick="toggleReport('{{ m.run_id }}')">View final_report.md</button>
+  <pre id="report-{{ m.run_id }}" style="display:none; white-space:pre-wrap; font-size:12px; margin-top:10px;"></pre>
+</div>
+{% endfor %}
+
+<div class="section-title">A/B comparisons (council vs single-agent)</div>
+{% if not comparisons %}
+<div class="card empty-state">No comparisons yet. Run <code>python -m council compare --brief examples/qr_restaurant.md --provider mock</code>.</div>
+{% endif %}
+{% for c in comparisons %}
+<div class="card">
+  <strong>{{ c.compare_id }}</strong>
+  <p class="hint">Council: {{ c.council_run_id }} · Solo: {{ c.solo_run_id }}</p>
+  <ul class="observer-list">
+    {% for k, v in c.deltas.items() %}<li>{{ k }}: +{{ v }}</li>{% endfor %}
+  </ul>
+  {% if c.council_only_insights %}
+  <p class="hint"><strong>Council-only insights:</strong></p>
+  <ul class="observer-list">{% for i in c.council_only_insights %}<li>{{ i }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function toggleReport(runId) {
+  const pre = document.getElementById('report-' + runId);
+  if (pre.style.display === 'none') {
+    if (!pre.textContent) {
+      const res = await fetch(`/api/meetings/${runId}/artifacts/file?path=final_report.md`);
+      const data = await res.json();
+      pre.textContent = data.content;
+    }
+    pre.style.display = 'block';
+  } else {
+    pre.style.display = 'none';
+  }
+}
+</script>
+{% endblock %}

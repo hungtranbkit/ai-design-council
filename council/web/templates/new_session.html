@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}New Council Session{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>New Council Session</h1>
+    <p class="subtitle">Write a brief, pick a provider, review the roles, then start the meeting.</p>
+  </div>
+</div>
+
+<div class="form-grid">
+  <div>
+    <label class="field-label" for="brief_text">Project brief</label>
+    <textarea id="brief_text">{{ example_brief }}</textarea>
+    <p class="hint">Prefilled with the demo QR-restaurant brief - edit or clear it.</p>
+
+    <div class="section-title">Provider</div>
+    <div class="provider-grid" id="provider-grid">
+      {% for p in providers %}
+      <div class="provider-chip {{ 'selected' if p.name == 'mock' else '' }} {{ 'disabled' if p.status != 'ready' else '' }}"
+           data-provider="{{ p.name }}" data-ready="{{ 'true' if p.status == 'ready' else 'false' }}" title="{{ p.reason }}">
+        {{ p.name }} <span class="badge {{ 'badge-success' if p.status == 'ready' else 'badge-muted' }}">{{ p.status }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="hint" id="provider-reason"></p>
+
+    <div class="section-title">Playback</div>
+    <label><input type="checkbox" id="playback_enabled" checked> Play back gradually (~0.5-1.5s per turn) so the meeting is watchable live</label>
+  </div>
+
+  <div>
+    <div class="section-title">Council (fixed at 6 roles in V0)</div>
+    {% for role in roles %}
+    <div class="role-card">
+      <div class="role-card-head">
+        <div class="role-avatar">{{ role.display_name[0] }}</div>
+        <div>
+          <div class="role-name">{{ role.display_name }}</div>
+          <div class="role-desc">{{ role.description }}</div>
+        </div>
+        <div style="margin-left:auto">
+          <input type="checkbox" checked disabled title="V0 requires all 6 core roles - toggling planned for V1">
+        </div>
+      </div>
+      <div class="skill-tags" data-role="{{ role.id }}">
+        {% for skill_id in role.skills %}
+        <span class="skill-tag on" data-skill="{{ skill_id }}">{{ skill_id.replace('_', ' ') }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    <p class="locked-note">Role participation is locked to all 6 in V0 (the pipeline and MockProvider script are written for exactly these 6). Skill tags are informational/display metadata for this session - edit defaults on the Roles &amp; Skills page.</p>
+  </div>
+</div>
+
+<div style="margin-top:20px; display:flex; gap:10px; align-items:center;">
+  <button class="btn btn-primary" id="start-meeting-btn">Start Meeting</button>
+  <span id="start-meeting-error" class="hint" style="color:var(--danger)"></span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.COUNCIL_ROLE_SKILLS = {{ roles | map(attribute='id') | list | tojson }}.reduce(function(acc, id){ acc[id] = []; return acc; }, {});
+document.querySelectorAll('.skill-tags').forEach(function(el){
+  window.COUNCIL_ROLE_SKILLS[el.dataset.role] = Array.from(el.querySelectorAll('.skill-tag.on')).map(function(t){ return t.dataset.skill; });
+});
+</script>
+{% endblock %}

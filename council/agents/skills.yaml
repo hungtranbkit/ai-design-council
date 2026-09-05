@@ -1,0 +1,31 @@
+# Skill catalog - data-driven, used by the web UI's Roles & Skills screens.
+# Adding/editing a skill here requires no code changes. `default_skills` in
+# each role's YAML (council/agents/roles/*.yaml) references these ids.
+skills:
+  - id: product_discovery
+    name: Product Discovery
+    description: Uncover the real user needs and business goals behind a brief.
+  - id: requirements_analysis
+    name: Requirements Analysis
+    description: Turn goals into concrete, falsifiable requirements.
+  - id: ux_flow
+    name: UX Flow Design
+    description: Design end-to-end interaction flows for every user role.
+  - id: architecture_review
+    name: Architecture Review
+    description: Evaluate system structure, data flow, and technical tradeoffs.
+  - id: security_review
+    name: Security Review
+    description: Find abuse, spoofing, and trust-boundary failure modes.
+  - id: qa_edge_cases
+    name: QA Edge Cases
+    description: Enumerate edge cases and correctness failure modes.
+  - id: cost_review
+    name: Cost Review
+    description: Challenge cost and complexity against real commercial constraints.
+  - id: devils_advocate_skill
+    name: Devil's Advocate
+    description: Actively hunt for hidden assumptions and complacent consensus.
+  - id: consensus_moderation
+    name: Consensus Moderation
+    description: Synthesize a debate into evidence-based accepted/rejected/unresolved decisions.

@@ -15,6 +15,8 @@ focus_areas:
   - cost of infrastructure and operations per customer segment
   - monetization / pricing model
   - commercial risk
+default_skills:
+  - cost_review
 round1_instructions: >
   Propose the business/commercial requirements and constraints for this brief,
   independently. You cannot see any other agent's output. List requirements,

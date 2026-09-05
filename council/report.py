@@ -7,23 +7,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from council.agents.display import display_name as _name
 from council.pipeline.orchestrator import CouncilRunResult
 from council.pipeline.single_agent import SoloRunResult
-
-_DISPLAY_NAMES = {
-    "product_ba": "Product/BA",
-    "ux_designer": "UX Designer",
-    "architect": "Architect",
-    "business_critic": "Business Critic",
-    "qa_security": "QA + Security",
-    "devils_advocate": "Devil's Advocate",
-    "moderator": "Moderator",
-    "solo_designer": "Solo Designer",
-}
-
-
-def _name(role_id: str) -> str:
-    return _DISPLAY_NAMES.get(role_id, role_id)
 
 
 def render_council_report(

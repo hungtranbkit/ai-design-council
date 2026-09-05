@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from council.agents.loader import load_solo_designer
 from council.pipeline import prompts
@@ -39,5 +40,6 @@ def run_solo(provider: Provider, brief_text: str) -> SoloRunResult:
         estimated_cost_usd=resp.estimated_cost_usd,
         latency_seconds=resp.latency_seconds,
         provider_name=resp.provider_name,
+        timestamp=datetime.now(timezone.utc).isoformat(),
     )
     return SoloRunResult(design=resp.parsed, calls=[call], wall_time_seconds=wall_time)

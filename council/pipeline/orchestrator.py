@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 from council.agents.loader import RoleConfig, load_council_roles, load_moderator
@@ -46,6 +47,7 @@ class CallRecord:
     estimated_cost_usd: float | None
     latency_seconds: float
     provider_name: str
+    timestamp: str = ""  # ISO 8601 UTC; used by the web UI to order/replay events
 
 
 @dataclass
@@ -86,6 +88,7 @@ class CouncilOrchestrator:
                 estimated_cost_usd=resp.estimated_cost_usd,
                 latency_seconds=resp.latency_seconds,
                 provider_name=resp.provider_name,
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
         return resp.parsed

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ run_id }} · Human Decision Center{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Human Decision Center</h1>
+    <p class="subtitle">{{ run_id }} · <strong>You make the final call.</strong> The council's synthesis is input, not a mandate.</p>
+  </div>
+  <a class="btn" href="/meetings/{{ run_id }}">← Back to Meeting Room</a>
+</div>
+
+<div class="human-flag">Human decision required on every item below - review the rationale and evidence, then choose Approve / Reject / Defer, or leave Pending.</div>
+
+<div class="section-title">Decisions</div>
+<form id="decisions-form">
+{% for item in items %}
+<div class="decision-item" data-topic="{{ item.topic }}">
+  <div class="flex-between">
+    <span class="topic-title">{{ item.topic.replace('_', ' ') }}</span>
+    <span class="badge {{ 'badge-success' if item.status == 'accepted' else ('badge-danger' if item.status == 'rejected' else 'badge-warning') }}">council: {{ item.status }}</span>
+  </div>
+  {% if item.decision %}<p class="rationale"><strong>Proposed decision:</strong> {{ item.decision }}</p>{% endif %}
+  <p class="rationale">{{ item.rationale }}</p>
+  {% if item.evidence %}
+  <ul class="observer-list">
+    {% for e in item.evidence %}<li>{{ e }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if item.dissent %}<p class="rationale"><strong>Dissent:</strong> {{ item.dissent }}</p>{% endif %}
+
+  <div class="choice-row" data-topic="{{ item.topic }}">
+    {% for choice in ["approve", "reject", "defer", "pending"] %}
+    <button type="button" class="choice-btn {{ 'selected-' + choice if item.human_choice == choice else '' }}" data-choice="{{ choice }}">{{ choice }}</button>
+    {% endfor %}
+  </div>
+  <input type="text" class="note-input" placeholder="Optional note / rationale for your choice" value="{{ item.note }}">
+</div>
+{% endfor %}
+
+<button type="submit" class="btn btn-primary">Save Decisions</button>
+<span id="decisions-saved-msg" class="hint"></span>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>initDecisionsPage("{{ run_id }}");</script>
+{% endblock %}

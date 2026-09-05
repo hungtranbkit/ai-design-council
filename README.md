@@ -106,6 +106,83 @@ runs/<run_id>/
 
 `compare` additionally writes `runs/comparisons/<compare_id>/{comparison.json,comparison.md}`.
 
+## Web UI - the "meeting room"
+
+A FastAPI app turns the same pipeline into a visual "AI design council"
+meeting: a round table with the 6 roles seated around it, a live transcript
+with filters, a ChatGPT Observer panel, and a Human Decision Center. It is a
+**pure read/write layer on top of the existing artifacts** - it does not
+duplicate or change any pipeline logic, and everything it produces
+(`events.json`, `playback_state.json`, `session_config.json`,
+`human_decisions.json`, `final_summary_for_chatgpt.json`) is additional files
+inside the same `runs/<run_id>/` directory. A run made by the CLI shows up in
+the web UI too (as an instantly-"completed" meeting); a run started from the
+web UI is a completely normal run directory the CLI/tests can also read.
+
+```bash
+pip install -e '.[web]'
+python -m council serve                 # http://127.0.0.1:8420
+python -m council serve --port 8080     # custom port
+python -m council serve --reload        # dev mode
+```
+
+Pages: **Meetings** (dashboard) → **New Council Session** (brief, provider,
+roles/skills, playback toggle) → **Meeting Room** (round table + live
+transcript + ChatGPT Observer) → **Human Decision Center** (Approve / Reject
+/ Defer / Pending per topic, with your notes) → **Roles & Skills** (edit
+which skills are attached to each role) → **Reports** → **Settings**.
+
+Starting a session runs the *entire* 5-round pipeline immediately (the mock
+provider is instant), then reveals it gradually - a random 0.5-1.5s delay per
+transcript event, computed statelessly from a fixed per-run schedule (so it
+survives a server restart, no background worker needed) - purely so a human
+can watch it happen. Uncheck "Play back gradually" to see the finished
+meeting immediately. This playback layer is entirely separate from the CLI
+and does not slow it down.
+
+### Read-only API (for an external ChatGPT/observer to poll)
+
+```
+GET  /api/meetings                              list of runs
+GET  /api/meetings/{run_id}                      meta + metrics + consensus
+GET  /api/meetings/{run_id}/status               current round/speaker/progress
+GET  /api/meetings/{run_id}/transcript?filter=    all | arguments | risks | mind_changes | decisions
+GET  /api/meetings/{run_id}/summary               ChatGPT-oriented payload (see below)
+GET  /api/meetings/{run_id}/artifacts             file manifest
+GET  /api/meetings/{run_id}/artifacts/file?path=  raw content of one artifact (path-traversal guarded)
+GET  /api/meetings/{run_id}/decisions             current Human Decision Center state
+POST /api/meetings/{run_id}/decisions             save decisions (writes human_decisions.json +
+                                                   final_summary_for_chatgpt.json)
+GET  /api/roles · /api/skills · /api/providers    role/skill config + provider readiness
+POST /api/meetings                                start a new council session
+PATCH /api/roles/{role_id}/skills                 edit a role's skill tags
+```
+
+`/summary` only reflects events *revealed so far* during playback (so an
+external reader never sees "spoilers" ahead of the visible meeting) and its
+`recommendation` field explicitly says "not yet reached" until round 5 is
+revealed. Every payload carries `human_decision_required: true` and a note
+that the user, not the council or ChatGPT, makes the final call - the web UI
+repeats this in the Meeting Room and the Human Decision Center.
+
+**Known V0 limitation:** the 6 council roles are fixed (the pipeline and
+MockProvider script are written for exactly these 6 ids) - the New Session
+screen's role checkboxes are therefore locked on. Skill tags *are* fully
+editable (data-driven from `council/agents/skills.yaml` + a small
+`council/agents/role_skill_overrides.json`, edited via the Roles & Skills
+page or `PATCH /api/roles/{id}/skills`) but are informational/display
+metadata in V0 - MockProvider's deterministic script doesn't read them back.
+Wiring skill selection into a real LLM's prompt is a natural V1 addition
+(see "Next steps" below).
+
+### Publishing it
+
+`python -m council serve` binds to `127.0.0.1` only. To publish, put a
+reverse proxy or tunnel in front of it - e.g. a dedicated Cloudflare Tunnel
+(see `~/.cloudflared/ai-design-council-config.yml` for the pattern used in
+this repo's own deployment: one named tunnel per app, never the shared root
+`config.yml`).
+
 ## Tests
 
 ```bash
@@ -114,7 +191,10 @@ pytest -q
 
 Covers: round-1 isolation, schema validation (including rejecting rubber-stamp
 reviews/critiques), mind-change detection (>=3 recorded, spanning >=2 agents),
-non-overwriting artifact directories, and the A/B comparison harness.
+non-overwriting artifact directories, the A/B comparison harness, the web
+API (meeting creation, status/transcript/summary payloads, human decisions,
+path-traversal-guarded artifact reads, non-destructive reads), and
+server-rendered page smoke tests.
 
 ## Next steps to wire up a real provider
 

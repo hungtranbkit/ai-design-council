@@ -38,12 +38,14 @@ def _cmd_run(args: argparse.Namespace) -> int:
         metrics = metrics_mod.compute_council_metrics(result)
         artifacts.save_council_artifacts(run_dir, result)
         artifacts.save_metrics(run_dir, metrics)
+        artifacts.save_calls(run_dir, result.calls)
         report_md = report_mod.render_council_report(run_id=run_dir.name, brief_text=brief_text, result=result, metrics=metrics)
     else:
         result = run_solo(provider, brief_text)
         metrics = metrics_mod.compute_solo_metrics(result)
         artifacts.save_solo_artifacts(run_dir, result)
         artifacts.save_metrics(run_dir, metrics)
+        artifacts.save_calls(run_dir, result.calls)
         report_md = report_mod.render_solo_report(run_id=run_dir.name, brief_text=brief_text, result=result, metrics=metrics)
 
     artifacts.save_final_report(run_dir, report_md)
@@ -104,6 +106,17 @@ def _cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_serve(args: argparse.Namespace) -> int:
+    try:
+        import uvicorn
+    except ImportError:
+        print("error: the web extra is not installed. Run: pip install -e '.[web]'", file=sys.stderr)
+        return 1
+    print(f"AI Design Council web UI: http://{args.host}:{args.port}  (runs dir: {Path('runs').resolve()})")
+    uvicorn.run("council.web.app:app", host=args.host, port=args.port, reload=args.reload)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m council", description="AI Design Council V0")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -127,6 +140,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_report.add_argument("run_id")
     p_report.add_argument("--runs-dir", default="runs")
     p_report.set_defaults(func=_cmd_report)
+
+    p_serve = sub.add_parser("serve", help="run the web UI + API (FastAPI/uvicorn)")
+    p_serve.add_argument("--host", default="127.0.0.1")
+    p_serve.add_argument("--port", type=int, default=8420)
+    p_serve.add_argument("--reload", action="store_true")
+    p_serve.set_defaults(func=_cmd_serve)
 
     return parser
 

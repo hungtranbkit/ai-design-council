@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Meetings · AI Design Council{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Meetings</h1>
+    <p class="subtitle">Recent council sessions and single-agent runs, read straight from <code>runs/</code>.</p>
+  </div>
+  <a class="btn btn-primary" href="/sessions/new">+ New Council Session</a>
+</div>
+
+{% if not meetings %}
+<div class="card empty-state">
+  No runs yet. Start your first council session, or run <code>python -m council run --brief examples/qr_restaurant.md --provider mock</code> from the CLI.
+</div>
+{% else %}
+<div class="meeting-list">
+  {% for m in meetings %}
+  <div class="meeting-row">
+    <div>
+      {% if m.is_meeting %}
+        <a class="title" href="/meetings/{{ m.run_id }}">{{ m.run_id }}</a>
+      {% else %}
+        <span class="title">{{ m.run_id }}</span>
+      {% endif %}
+      <div class="meta-line">{{ m.brief_excerpt or "(no brief excerpt)" }}</div>
+    </div>
+    <div>
+      <span class="badge {{ 'badge-success' if m.status == 'completed' else 'badge-warning' }}">{{ m.status }}</span>
+      <div class="meta-line">{{ m.mode }} · {{ m.provider }}</div>
+    </div>
+    <div class="meta-line">
+      {% if m.is_meeting %}
+        Round: <strong>{{ m.current_round or '-' }}/5</strong> - {{ m.current_round_label }}<br>
+        Agents: {{ m.participants | length }}
+      {% else %}
+        Single-agent baseline (no rounds)
+      {% endif %}
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="num">{{ m.metrics.requirements_count if m.metrics.requirements_count is not none else '-' }}</div><div class="label">Reqs</div></div>
+      <div class="stat"><div class="num">{{ m.metrics.risks_count if m.metrics.risks_count is not none else '-' }}</div><div class="label">Risks</div></div>
+      <div class="stat"><div class="num">{{ m.metrics.mind_changes_count if m.metrics.mind_changes_count is not none else '-' }}</div><div class="label">Changes</div></div>
+      <div class="stat"><div class="num">{{ m.metrics.unresolved_count if m.metrics.unresolved_count is not none else '-' }}</div><div class="label">Unresolved</div></div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

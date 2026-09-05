@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Roles & Skills{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Roles &amp; Skills</h1>
+    <p class="subtitle">Skill assignments are data-driven and editable here. The 6-role set itself is fixed in V0 (see README).</p>
+  </div>
+</div>
+
+<div class="roles-grid">
+  {% for role in roles %}
+  <div class="card" data-role-card="{{ role.id }}">
+    <div class="role-card-head">
+      <div class="role-avatar">{{ role.display_name[0] }}</div>
+      <div>
+        <div class="role-name">{{ role.display_name }}</div>
+        <div class="role-desc">{{ role.description }}</div>
+      </div>
+    </div>
+    {% if role.focus_areas %}
+    <p class="hint" style="margin-top:8px;">Focus: {{ role.focus_areas | join(', ') }}</p>
+    {% endif %}
+    <div class="section-title" style="margin-top:12px;">Skills</div>
+    <div class="skill-tags" data-role-skills="{{ role.id }}">
+      {% for skill in all_skills %}
+      <span class="skill-tag {{ 'on' if skill.id in role.skills else '' }}" data-skill="{{ skill.id }}" title="{{ skill.description }}">{{ skill.name }}</span>
+      {% endfor %}
+    </div>
+    <button class="btn btn-sm" style="margin-top:12px;" onclick="saveRoleSkills('{{ role.id }}')">Save</button>
+    <span class="hint save-status" data-status-for="{{ role.id }}"></span>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

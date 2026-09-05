@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ run_id }} · Meeting Room{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Meeting Room</h1>
+    <p class="subtitle">{{ run_id }} · provider: {{ meeting.meta.provider }}</p>
+  </div>
+  <div>
+    <a class="btn" href="/meetings/{{ run_id }}/decisions">Human Decision Center →</a>
+  </div>
+</div>
+
+<div class="progress-header" id="progress-header">
+  <div class="round-step" data-round="1">R1 · Proposal</div>
+  <div class="round-step" data-round="2">R2 · Cross Review</div>
+  <div class="round-step" data-round="3">R3 · Devil's Advocate</div>
+  <div class="round-step" data-round="4">R4 · Defense</div>
+  <div class="round-step" data-round="5">R5 · Consensus</div>
+  <div class="progress-stats">
+    <span>Mind changes: <b id="stat-mind-changes">0</b></span>
+    <span>Accepted: <b id="stat-accepted">0</b></span>
+    <span>Rejected: <b id="stat-rejected">0</b></span>
+    <span>Unresolved: <b id="stat-unresolved">0</b></span>
+  </div>
+</div>
+
+<div class="room-grid">
+  <div>
+    <div class="table-room" id="table-room">
+      <div class="table-surface"><div class="table-caption">QR Ordering Restaurant<br>council session</div></div>
+      {% for role in seat_roles %}
+      <div class="seat waiting seat-{{ loop.index }}" data-role="{{ role.id }}">
+        <div class="seat-avatar">{{ role.display_name[0] }}</div>
+        <div class="seat-name">{{ role.display_name }}</div>
+        <div class="seat-status">waiting</div>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="hint">Click a seat to open that role's Round 1 / Round 4 artifact.</p>
+  </div>
+
+  <div class="transcript-panel">
+    <div class="filter-row">
+      <button class="filter-chip active" data-filter="all">All</button>
+      <button class="filter-chip" data-filter="arguments">Arguments</button>
+      <button class="filter-chip" data-filter="risks">Risks</button>
+      <button class="filter-chip" data-filter="mind_changes">Mind Changes</button>
+      <button class="filter-chip" data-filter="decisions">Decisions</button>
+    </div>
+    <div class="transcript-scroll" id="transcript-scroll">
+      <p class="hint">Loading transcript…</p>
+    </div>
+  </div>
+</div>
+
+<div class="card observer-panel">
+  <h3>🔎 ChatGPT Observer / AI Product Director</h3>
+  <p class="observer-note">Read-only view of what an external ChatGPT reading <code>/api/meetings/{{ run_id }}/summary</code> would see right now. It cannot decide anything - only the user can.</p>
+  <div id="observer-body">
+    <p class="hint">Loading…</p>
+  </div>
+</div>
+
+<div id="artifact-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(10,14,25,0.45); z-index:50;">
+  <div style="max-width:640px; margin:60px auto; background:var(--bg-panel); border-radius:var(--radius); padding:18px 20px; max-height:75vh; overflow:auto; box-shadow:var(--shadow);">
+    <div class="flex-between"><strong id="artifact-modal-title">Artifact</strong><button class="btn btn-sm" onclick="closeArtifactModal()">Close</button></div>
+    <pre id="artifact-modal-content" style="white-space:pre-wrap; font-size:12px; margin-top:10px;"></pre>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+initMeetingRoom("{{ run_id }}");
+</script>
+{% endblock %}

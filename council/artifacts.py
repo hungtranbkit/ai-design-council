@@ -104,5 +104,15 @@ def save_metrics(run_dir: Path, metrics: dict[str, Any]) -> None:
     write_json(run_dir / "metrics.json", metrics)
 
 
+def save_calls(run_dir: Path, calls: list[Any]) -> None:
+    """calls: list of council.pipeline.orchestrator.CallRecord (dataclasses).
+    Persisted so the web UI can reconstruct an ordered, timestamped transcript
+    without needing the in-process CouncilRunResult (e.g. after a server
+    restart, or for a run made from the CLI)."""
+    from dataclasses import asdict
+
+    write_json(run_dir / "calls.json", [asdict(c) for c in calls])
+
+
 def save_final_report(run_dir: Path, report_markdown: str) -> None:
     write_text(run_dir / "final_report.md", report_markdown)

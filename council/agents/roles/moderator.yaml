@@ -21,6 +21,8 @@ focus_areas:
   - evidence-based synthesis
   - distinguishing technical resolution from business/policy escalation
   - explicit dissent recording
+default_skills:
+  - consensus_moderation
 round5_instructions: >
   Synthesize the full transcript into a ConsensusReport: one ConsensusItem per
   contested topic, each with status (accepted/rejected/unresolved), decision

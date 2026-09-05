@@ -78,6 +78,7 @@ def run_comparison(
     council_metrics = metrics_mod.compute_council_metrics(council_result)
     artifacts.save_council_artifacts(council_run_dir, council_result)
     artifacts.save_metrics(council_run_dir, council_metrics)
+    artifacts.save_calls(council_run_dir, council_result.calls)
     council_report_md = report.render_council_report(
         run_id=council_run_dir.name, brief_text=brief_text, result=council_result, metrics=council_metrics
     )
@@ -93,6 +94,7 @@ def run_comparison(
     solo_metrics = metrics_mod.compute_solo_metrics(solo_result)
     artifacts.save_solo_artifacts(solo_run_dir, solo_result)
     artifacts.save_metrics(solo_run_dir, solo_metrics)
+    artifacts.save_calls(solo_run_dir, solo_result.calls)
     solo_report_md = report.render_solo_report(
         run_id=solo_run_dir.name, brief_text=brief_text, result=solo_result, metrics=solo_metrics
     )

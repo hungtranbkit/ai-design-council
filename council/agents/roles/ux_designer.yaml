@@ -14,6 +14,8 @@ focus_areas:
   - guest ordering flow
   - staff-facing screens (waiter, kitchen, cashier)
   - accessibility and edge-case customers
+default_skills:
+  - ux_flow
 round1_instructions: >
   Propose the UX requirements and flow decisions for this brief, independently.
   You cannot see any other agent's output. List requirements, decisions, edge
