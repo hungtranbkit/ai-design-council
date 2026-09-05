@@ -30,18 +30,18 @@ def test_static_pages_render(client, path):
 def test_meeting_room_and_decisions_pages_render_for_a_real_meeting(client):
     created = client.post(
         "/api/meetings",
-        json={"brief_text": BRIEF_TEXT, "brief_name": "t", "provider": "mock", "role_skills": {}, "playback_enabled": False},
+        json={"brief_text": BRIEF_TEXT, "brief_name": "t", "provider": "mock", "role_skills": {}, "playback_enabled": False, "rounds": 5},
     ).json()
     run_id = created["run_id"]
 
     room = client.get(f"/meetings/{run_id}")
     assert room.status_code == 200
-    assert "Meeting Room" in room.text
+    assert "Phòng họp" in room.text
     assert "seat-1" in room.text  # 6 seats rendered
 
     decisions = client.get(f"/meetings/{run_id}/decisions")
     assert decisions.status_code == 200
-    assert "Human Decision Center" in decisions.text
+    assert "Trung tâm Quyết định" in decisions.text
     assert "qr_signing" in decisions.text.replace("_", "_")  # topic rendered somewhere
 
 
@@ -60,9 +60,9 @@ def test_role_catalog_page_shows_all_8_roles_with_runtime_and_status(client):
     ]:
         assert expected in text
     assert "Runtime:" in text
-    assert "Debater · Rounds 1-4" in text
-    assert "Moderator · Round 5" in text
-    assert "Observer · Read-only" in text
+    assert "Debater · Vòng 1-4" in text
+    assert "Moderator · Vòng cuối" in text
+    assert "Observer · Chỉ xem" in text
     assert "Runtime: deterministic" in text  # the Observer doesn't call an LLM in V0
 
 
@@ -81,7 +81,7 @@ def test_skill_catalog_page_renders_with_categories(client):
     resp = client.get("/skills")
     assert resp.status_code == 200
     text = resp.text
-    assert "Skill Catalog" in text
+    assert "Danh mục Skill" in text
     assert "requirement-discovery" in text
     assert "Requirement Discovery" in text
     assert "Governance" in text or "governance" in text.lower()
@@ -100,5 +100,7 @@ def test_no_secrets_leak_through_settings_or_providers(client, monkeypatch):
 def test_dashboard_shows_run_demo_meeting_button(client):
     resp = client.get("/")
     assert resp.status_code == 200
-    assert "Run Demo Meeting" in resp.text
+    assert "Chạy Demo 5 vòng" in resp.text
+    assert "Chạy Demo 10 vòng" in resp.text
     assert 'onclick="runDemoMeeting(this)"' in resp.text
+    assert 'onclick="runDemoMeetingExtended(this)"' in resp.text

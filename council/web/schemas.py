@@ -12,7 +12,8 @@ class NewMeetingRequest(BaseModel):
     brief_name: str = "session"
     provider: str = "mock"
     model: str | None = None  # overrides the provider's default model; ignored for provider="mock"
-    language: str | None = None  # e.g. "vi" - see council.pipeline.orchestrator.LANGUAGE_INSTRUCTIONS
+    language: str | None = "vi"  # e.g. "vi" - see council.pipeline.orchestrator.LANGUAGE_INSTRUCTIONS
+    rounds: int = 10  # 10 (default, deeper pipeline) or 5 (legacy). MockProvider only supports 10 for examples/pos_retail_vn.md.
     role_skills: dict[str, list[str]] = Field(default_factory=dict)
     playback_enabled: bool = True
 

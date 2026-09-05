@@ -33,6 +33,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from council.providers import _mock_pos_retail_scenario as _pos_retail
 from council.providers import _mock_ssh_ops_scenario as _ssh_ops
 
 from council.pipeline.schemas import (
@@ -831,16 +832,36 @@ _SCENARIOS: dict[str, dict[str, Any]] = {
         "round4": _ssh_ops.ROUND4,
         "round5": _ssh_ops.build_consensus_report,
     },
+    # 10-round scenario (council/pipeline/orchestrator_extended.py) - note the
+    # round-number *meaning* differs from the two 5-round scenarios above
+    # (e.g. round1 here is "Problem Understanding", not "Independent
+    # Proposal") - this is fine because a brief only ever matches one
+    # scenario, and each scenario's round-shape is entirely self-contained.
+    _pos_retail.SCENARIO_ID: {
+        "round1": _pos_retail.ROUND1,
+        "round2": _pos_retail.ROUND2,
+        "round3": _pos_retail.ROUND3,
+        "round4": _pos_retail.ROUND4,
+        "round5": _pos_retail.build_devils_advocate_report,
+        "round6": _pos_retail.ROUND6,
+        "round7": _pos_retail.ROUND7,
+        "round8": _pos_retail.ROUND8,
+        "round9": _pos_retail.build_convergence_report,
+        "round10": _pos_retail.build_consensus_report,
+    },
 }
 _DEFAULT_SCENARIO = "qr_restaurant"
 
 
 def _detect_scenario(context: dict[str, Any]) -> str:
     """Picks a scenario purely from the brief text in `context["brief"]` -
-    present on every round's context (see orchestrator.py). Defaults to the
-    original QR-restaurant scenario so every existing call site/test that
-    doesn't mention the SSH scenario's markers is completely unaffected."""
+    present on every round's context (see orchestrator.py /
+    orchestrator_extended.py). Defaults to the original QR-restaurant
+    scenario so every existing call site/test that doesn't mention a newer
+    scenario's markers is completely unaffected."""
     brief = (context.get("brief") or "").lower()
+    if any(marker in brief for marker in _pos_retail.MARKERS):
+        return _pos_retail.SCENARIO_ID
     if any(marker in brief for marker in _ssh_ops.MARKERS):
         return _ssh_ops.SCENARIO_ID
     return _DEFAULT_SCENARIO
@@ -850,6 +871,10 @@ class MockProvider(Provider):
     """Deterministic offline provider implementing the interface in base.Provider."""
 
     name = "mock"
+
+    def supports_rounds(self, brief_text: str, rounds: int) -> bool:
+        scenario = _SCENARIOS[_detect_scenario({"brief": brief_text})]
+        return all(f"round{n}" in scenario for n in range(1, rounds + 1))
 
     def complete(
         self,
@@ -892,31 +917,38 @@ class MockProvider(Provider):
             return _SOLO_DESIGN.model_copy(deep=True)
 
         scenario = _SCENARIOS[_detect_scenario(context)]
+        key = f"round{round_num}"
+        if key not in scenario:
+            raise ValueError(f"MockProvider's '{_detect_scenario(context)}' scenario does not support round {round_num}")
+        data = scenario[key]
 
-        if round_num == 1:
-            round1 = scenario["round1"]
-            if role not in round1:
-                raise KeyError(f"MockProvider has no round-1 script for role '{role}'")
-            return round1[role].model_copy(deep=True)
-
-        if round_num == 2:
-            reviewer = role
+        # Three shapes, self-describing from `data` and `context` - covers
+        # every round in both the 5-round and 10-round pipelines uniformly:
+        #
+        #   1. Cross review: dict[reviewer][target] -> CrossReview. Signalled
+        #      by "target_role" being in context (every cross-review call in
+        #      both orchestrators sets it - see orchestrator.py/
+        #      orchestrator_extended.py's cross-review context construction).
+        if "target_role" in context:
             target = context.get("target_role")
-            table = scenario["round2"].get(reviewer, {})
+            table = data.get(role, {})
             if target not in table:
-                raise KeyError(f"MockProvider has no round-2 script for reviewer='{reviewer}' target='{target}'")
+                raise KeyError(f"MockProvider has no round-{round_num} script for reviewer='{role}' target='{target}'")
             return table[target].model_copy(deep=True)
 
-        if round_num == 3:
-            return scenario["round3"]()
+        #   2. Single aggregate call (Devil's Advocate / Convergence /
+        #      Consensus): a zero-arg callable, not keyed by role at all.
+        if callable(data):
+            return data()
 
-        if round_num == 4:
-            round4 = scenario["round4"]
-            if role not in round4:
-                raise KeyError(f"MockProvider has no round-4 script for role '{role}'")
-            return round4[role]()
-
-        if round_num == 5:
-            return scenario["round5"]()
-
-        raise ValueError(f"MockProvider does not support round {round_num}")
+        #   3. Role-keyed call (proposals, alternatives, pre-mortem,
+        #      defense): dict[role] -> either a static model instance, or a
+        #      zero-arg callable (the defense-function pattern, used where a
+        #      fresh object per call reads more naturally than a copied
+        #      static one - functionally equivalent).
+        if role not in data:
+            raise KeyError(f"MockProvider has no round-{round_num} script for role '{role}'")
+        entry = data[role]
+        if callable(entry) and not isinstance(entry, BaseModel):
+            return entry()
+        return entry.model_copy(deep=True)

@@ -32,10 +32,10 @@ async function fetchAllArtifacts(runId) {
     const list = manifest.files.map((f) =>
       `<li><a href="#" onclick="loadArtifactFile('${runId}','${f.path}'); return false;">${escapeHtml(f.path)}</a> <span class="hint">(${f.size_bytes}b)</span></li>`
     ).join("");
-    openArtifactModal("All artifacts", "");
+    openArtifactModal("Toàn bộ artifact", "");
     document.getElementById("artifact-modal-content").innerHTML = `<ul class="observer-list">${list}</ul>`;
   } catch (err) {
-    openArtifactModal("All artifacts", "Could not load manifest: " + err.message);
+    openArtifactModal("Toàn bộ artifact", "Không tải được manifest: " + err.message);
   }
 }
 
@@ -46,12 +46,28 @@ async function runDemoMeeting(btn) {
   errEl.textContent = "";
   btn.disabled = true;
   const original = btn.textContent;
-  btn.textContent = "Starting demo…";
+  btn.textContent = "Đang khởi động demo…";
   try {
     const result = await fetchJSON("/api/meetings/demo", { method: "POST" });
     window.location.href = `/meetings/${result.run_id}`;
   } catch (err) {
-    errEl.textContent = "Failed to start demo meeting: " + err.message;
+    errEl.textContent = "Không khởi động được demo: " + err.message;
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+async function runDemoMeetingExtended(btn) {
+  const errEl = document.getElementById("run-demo-error");
+  errEl.textContent = "";
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = "Đang khởi động demo 10 vòng…";
+  try {
+    const result = await fetchJSON("/api/meetings/demo-extended", { method: "POST" });
+    window.location.href = `/meetings/${result.run_id}`;
+  } catch (err) {
+    errEl.textContent = "Không khởi động được demo 10 vòng: " + err.message;
     btn.disabled = false;
     btn.textContent = original;
   }
@@ -62,7 +78,7 @@ async function loadArtifactFile(runId, path) {
     const file = await fetchJSON(`/api/meetings/${runId}/artifacts/file?path=${encodeURIComponent(path)}`);
     openArtifactModal(path, file.content);
   } catch (err) {
-    openArtifactModal(path, "Could not load: " + err.message);
+    openArtifactModal(path, "Không tải được: " + err.message);
   }
 }
 
@@ -102,16 +118,18 @@ if (startBtn) {
     const errEl = document.getElementById("start-meeting-error");
     errEl.textContent = "";
     if (!briefText) {
-      errEl.textContent = "Brief cannot be empty.";
+      errEl.textContent = "Đề bài không được để trống.";
       return;
     }
     const selectedChip = document.querySelector(".provider-chip.selected");
     const provider = selectedChip ? selectedChip.dataset.provider : "mock";
     const modelOverride = document.getElementById("model_override").value.trim() || null;
     const playback = document.getElementById("playback_enabled").checked;
+    const roundsInput = document.querySelector('input[name="rounds"]:checked');
+    const rounds = roundsInput ? parseInt(roundsInput.value, 10) : 10;
 
     startBtn.disabled = true;
-    startBtn.textContent = "Starting…";
+    startBtn.textContent = "Đang khởi động…";
     try {
       const result = await fetchJSON("/api/meetings", {
         method: "POST",
@@ -123,13 +141,14 @@ if (startBtn) {
           model: modelOverride,
           role_skills: window.COUNCIL_ROLE_SKILLS || {},
           playback_enabled: playback,
+          rounds: rounds,
         }),
       });
       window.location.href = `/meetings/${result.run_id}`;
     } catch (err) {
-      errEl.textContent = "Failed to start meeting: " + err.message;
+      errEl.textContent = "Không khởi động được cuộc họp: " + err.message;
       startBtn.disabled = false;
-      startBtn.textContent = "Start Meeting";
+      startBtn.textContent = "Bắt đầu họp";
     }
   });
 }
@@ -139,14 +158,18 @@ if (startBtn) {
    ================================================================== */
 
 const EVENT_TYPE_ICON = {
+  problem_understanding: "🧭",
   proposal: "📝",
   agreement: "🤝",
   disagreement: "⚔️",
   proposed_change: "🔁",
   risk: "⚠️",
   critique: "🕵️",
+  alternative: "🔀",
   defense: "🛡️",
   mind_change: "💡",
+  premortem: "☠️",
+  convergence: "🧩",
   decision: "✅",
 };
 
@@ -194,10 +217,25 @@ function initMeetingRoom(runId) {
     });
   });
 
+  let roundStepsRendered = null; // total_rounds we last rendered chips for - only rebuild DOM if it changes
+
+  function renderRoundSteps(status) {
+    if (roundStepsRendered === status.total_rounds) return;
+    const container = document.getElementById("round-steps");
+    const labels = status.round_labels || {};
+    const chips = [];
+    for (let r = 1; r <= status.total_rounds; r++) {
+      chips.push(`<div class="round-step" data-round="${r}">R${r} · ${escapeHtml(labels[String(r)] || "")}</div>`);
+    }
+    container.innerHTML = chips.join("");
+    roundStepsRendered = status.total_rounds;
+  }
+
   async function refreshStatus() {
     const status = await fetchJSON(`/api/meetings/${runId}/status`);
     if (!status.is_meeting) return status;
 
+    renderRoundSteps(status);
     document.querySelectorAll(".round-step").forEach((el) => {
       const r = parseInt(el.dataset.round, 10);
       el.classList.remove("current", "done");
@@ -210,26 +248,30 @@ function initMeetingRoom(runId) {
     document.getElementById("stat-unresolved").textContent = status.unresolved_count;
 
     const metaStatus = document.getElementById("meta-status");
-    if (metaStatus) metaStatus.textContent = status.status || (status.is_complete ? "completed" : "running");
+    if (metaStatus) metaStatus.textContent = status.status === "completed" ? "hoàn tất" : "đang chạy";
     const metaElapsed = document.getElementById("meta-elapsed");
     if (metaElapsed) metaElapsed.textContent = status.elapsed_seconds != null ? `${status.elapsed_seconds}s` : "-";
     const metaProvider = document.getElementById("meta-provider");
     if (metaProvider && status.provider) metaProvider.textContent = status.provider;
     const metaModel = document.getElementById("meta-model");
-    if (metaModel) metaModel.textContent = status.model || "default";
+    if (metaModel) metaModel.textContent = status.model || "mặc định";
 
+    // "Devil's Advocate" round highlights with the critique color regardless
+    // of which round number it is (round 3 in the 5-round pipeline, round 5
+    // in the 10-round one) - matched by label, not a hardcoded round number.
+    const isDevilsAdvocateRound = (status.current_round_label || "").includes("Devil's Advocate");
     document.querySelectorAll(".seat").forEach((seat) => {
       seat.classList.remove("speaking", "spoke", "critiquing", "waiting");
       const statusEl = seat.querySelector(".seat-status");
       if (seat.dataset.role === status.current_speaker_role) {
-        seat.classList.add(status.current_round === 3 ? "critiquing" : "speaking");
-        statusEl.textContent = status.current_round === 3 ? "critiquing" : "speaking";
+        seat.classList.add(isDevilsAdvocateRound ? "critiquing" : "speaking");
+        statusEl.textContent = isDevilsAdvocateRound ? "đang phản biện…" : "đang phát biểu…";
       } else if (status.current_round > 1 || status.revealed_events > 0) {
         seat.classList.add("spoke");
-        statusEl.textContent = "spoke";
+        statusEl.textContent = "đã phát biểu";
       } else {
         seat.classList.add("waiting");
-        statusEl.textContent = "waiting";
+        statusEl.textContent = "đang chờ";
       }
     });
     return status;
@@ -253,18 +295,18 @@ function initMeetingRoom(runId) {
     const args = (s.major_arguments || []).slice(0, 5).map((a) => `<li>${escapeHtml(a)}</li>`).join("");
     const unresolved = (s.unresolved || []).map((u) => `<li><strong>${escapeHtml(u.topic)}</strong>: ${escapeHtml(u.rationale)}</li>`).join("");
     body.innerHTML = `
-      <p><strong>Round ${s.current_round}/5</strong> - ${escapeHtml(s.current_round_label)} · ${s.is_complete ? "meeting complete" : "in progress"}</p>
-      <div class="section-title">Latest arguments</div>
-      <ul class="observer-list">${args || "<li>(none yet)</li>"}</ul>
-      <div class="section-title">Unresolved - requires human decision</div>
-      <ul class="observer-list">${unresolved || "<li>(none yet)</li>"}</ul>
-      <div class="section-title">Preliminary synthesis</div>
+      <p><strong>Vòng ${s.current_round}/${s.total_rounds}</strong> - ${escapeHtml(s.current_round_label)} · ${s.is_complete ? "cuộc họp đã hoàn tất" : "đang diễn ra"}</p>
+      <div class="section-title">Diễn biến mới nhất</div>
+      <ul class="observer-list">${args || "<li>(chưa có)</li>"}</ul>
+      <div class="section-title">Chưa giải quyết - cần bạn quyết định</div>
+      <ul class="observer-list">${unresolved || "<li>(chưa có)</li>"}</ul>
+      <div class="section-title">Tổng hợp sơ bộ</div>
       <p class="rationale">${escapeHtml(s.recommendation)}</p>
-      <div class="human-flag">⚠ Human Decision Required - ChatGPT/ the council may summarize, but only the user decides.</div>
+      <div class="human-flag">⚠ Cần bạn quyết định - ChatGPT/council chỉ tổng hợp, không tự quyết định thay bạn.</div>
     `;
   }
 
-  const STATE_LABEL = { speaking: "Speaking…", thinking: "Thinking…", done: "Done", waiting: "Waiting" };
+  const STATE_LABEL = { speaking: "Đang phát biểu…", thinking: "Đang suy nghĩ…", done: "Đã xong", waiting: "Đang chờ" };
 
   async function refreshParticipants() {
     const p = await fetchJSON(`/api/meetings/${runId}/participants`);
@@ -362,9 +404,9 @@ function initDecisionsPage(runId) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ decisions }),
       });
-      msg.textContent = "Saved. final_summary_for_chatgpt.json updated.";
+      msg.textContent = "Đã lưu. final_summary_for_chatgpt.json đã được cập nhật.";
     } catch (err) {
-      msg.textContent = "Failed to save: " + err.message;
+      msg.textContent = "Lưu thất bại: " + err.message;
     }
   });
 }

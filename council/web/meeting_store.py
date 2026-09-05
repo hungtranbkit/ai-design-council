@@ -25,12 +25,15 @@ from typing import Any
 
 from council import artifacts, metrics as metrics_mod, report as report_mod
 from council.pipeline.orchestrator import CouncilOrchestrator
+from council.pipeline.orchestrator_extended import ExtendedCouncilOrchestrator
 from council.providers import get_provider
+from council.providers.base import ProviderError
 from council.web import meeting_events
 
 DEFAULT_RUNS_DIR = Path("runs")
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 EXAMPLE_BRIEF_PATH = REPO_ROOT / "examples" / "qr_restaurant.md"
+EXTENDED_EXAMPLE_BRIEF_PATH = REPO_ROOT / "examples" / "pos_retail_vn.md"
 
 
 class MeetingNotFound(Exception):
@@ -47,11 +50,11 @@ class InvalidArtifactPath(Exception):
 
 
 def create_demo_meeting(runs_dir: Path) -> str:
-    """One-click 'Run Demo Meeting': the example QR-restaurant brief, mock
-    provider, all 6 default roles, gradual playback so it's watchable live -
-    exactly the same create_meeting() path as a hand-built New Session
-    request, just with fixed demo defaults. No fake transcript: this runs the
-    real orchestrator like any other meeting."""
+    """One-click 'Run Demo Meeting' (legacy, English, 5-round): the example
+    QR-restaurant brief, mock provider, all 6 default roles, gradual
+    playback - unchanged behavior, kept exactly as it was before the
+    10-round pipeline existed. See create_demo_meeting_extended for the new
+    default (10-round, Vietnamese) demo."""
     brief_text = EXAMPLE_BRIEF_PATH.read_text(encoding="utf-8")
     return create_meeting(
         runs_dir=runs_dir,
@@ -60,6 +63,25 @@ def create_demo_meeting(runs_dir: Path) -> str:
         provider_name="mock",
         role_skills={},
         playback_enabled=True,
+        rounds=5,
+        language=None,
+    )
+
+
+def create_demo_meeting_extended(runs_dir: Path) -> str:
+    """One-click 10-round Vietnamese demo: examples/pos_retail_vn.md (phần
+    mềm quản lý bán hàng cho tiểu thương Việt Nam), mock provider - this is
+    the only brief MockProvider has a full 10-round scenario for in V0."""
+    brief_text = EXTENDED_EXAMPLE_BRIEF_PATH.read_text(encoding="utf-8")
+    return create_meeting(
+        runs_dir=runs_dir,
+        brief_text=brief_text,
+        brief_name="demo-pos-retail",
+        provider_name="mock",
+        role_skills={},
+        playback_enabled=True,
+        rounds=10,
+        language="vi",
     )
 
 
@@ -71,7 +93,8 @@ def create_meeting(
     provider_name: str,
     role_skills: dict[str, list[str]] | None,
     model: str | None = None,
-    language: str | None = None,
+    language: str | None = "vi",
+    rounds: int = 10,
     playback_enabled: bool = True,
 ) -> str:
     # MockProvider() takes no constructor args - only forward an explicit
@@ -79,7 +102,15 @@ def create_meeting(
     provider_kwargs = {"model": model} if model and provider_name != "mock" else {}
     provider = get_provider(provider_name, **provider_kwargs)  # raises ProviderError if misconfigured
 
-    run_dir = artifacts.make_run_dir(runs_dir, brief_name, "council")
+    if not provider.supports_rounds(brief_text, rounds):
+        raise ProviderError(
+            f"Provider '{provider.name}' không có kịch bản {rounds} vòng cho brief này. "
+            "MockProvider ở V0 chỉ mô phỏng đủ 10 vòng cho đề bài mẫu POS tiểu thương "
+            "(examples/pos_retail_vn.md) - với brief tùy ý, hãy chọn 5 vòng, hoặc dùng provider "
+            "Anthropic/OpenAI thật để chạy 10 vòng với nội dung sinh trực tiếp từ mô hình."
+        )
+
+    run_dir = artifacts.make_run_dir(runs_dir, brief_name, "council", extended=(rounds == 10))
     artifacts.save_meta(
         run_dir,
         run_id=run_dir.name,
@@ -87,21 +118,32 @@ def create_meeting(
         provider=provider.name,
         brief_path="(web session)",
         model=getattr(provider, "model", None),
+        round_count=rounds,
+        language=language,
     )
     artifacts.save_brief(run_dir, brief_text)
 
-    orchestrator = CouncilOrchestrator(provider=provider, language=language)
-    result = orchestrator.run(brief_text)
-    metrics = metrics_mod.compute_council_metrics(result)
-    artifacts.save_council_artifacts(run_dir, result)
+    if rounds == 10:
+        orchestrator10 = ExtendedCouncilOrchestrator(provider=provider, language=language)
+        result10 = orchestrator10.run(brief_text)
+        metrics = metrics_mod.compute_extended_council_metrics(result10)
+        artifacts.save_extended_council_artifacts(run_dir, result10)
+        artifacts.save_calls(run_dir, result10.calls)
+        report_md = report_mod.render_extended_council_report(run_id=run_dir.name, brief_text=brief_text, result=result10, metrics=metrics)
+    else:
+        orchestrator5 = CouncilOrchestrator(provider=provider, language=language)
+        result5 = orchestrator5.run(brief_text)
+        metrics = metrics_mod.compute_council_metrics(result5)
+        artifacts.save_council_artifacts(run_dir, result5)
+        artifacts.save_calls(run_dir, result5.calls)
+        report_md = report_mod.render_council_report(run_id=run_dir.name, brief_text=brief_text, result=result5, metrics=metrics)
+
     artifacts.save_metrics(run_dir, metrics)
-    artifacts.save_calls(run_dir, result.calls)
-    report_md = report_mod.render_council_report(run_id=run_dir.name, brief_text=brief_text, result=result, metrics=metrics)
     artifacts.save_final_report(run_dir, report_md)
 
     artifacts.write_json(
         run_dir / "session_config.json",
-        {"role_skills": role_skills or {}, "language": language, "started_at": datetime.now(timezone.utc).isoformat()},
+        {"role_skills": role_skills or {}, "language": language, "rounds": rounds, "started_at": datetime.now(timezone.utc).isoformat()},
     )
 
     events = meeting_events.build_events(run_dir)
@@ -229,12 +271,14 @@ def list_meetings(runs_dir: Path) -> list[dict]:
             current = events[revealed - 1] if revealed else None
             row["status"] = "completed" if complete else "in_progress"
             row["current_round"] = current["round"] if current else 0
-            row["current_round_label"] = current["round_label"] if current else "Not started"
+            row["current_round_label"] = current["round_label"] if current else "Chưa bắt đầu"
+            row["total_rounds"] = meta.get("round_count") or 5
             row["participants"] = sorted({e["speaker_role"] for e in events})
         else:
             row["status"] = "completed"
             row["current_round"] = None
             row["current_round_label"] = None
+            row["total_rounds"] = None
             row["participants"] = []
         rows.append(row)
     return rows
@@ -279,6 +323,9 @@ def get_status(runs_dir: Path, run_id: str) -> dict:
     rejected = sum(1 for e in decisions if e["meta"].get("status") == "rejected")
     unresolved = sum(1 for e in decisions if e["meta"].get("status") == "unresolved")
 
+    round_count = meta.get("round_count") or 5
+    round_labels = meeting_events.ROUND_LABELS_10 if round_count == 10 else meeting_events.ROUND_LABELS_5
+
     return {
         "run_id": run_id,
         "is_meeting": True,
@@ -289,8 +336,10 @@ def get_status(runs_dir: Path, run_id: str) -> dict:
         "total_events": len(events),
         "revealed_events": revealed,
         "is_complete": complete,
+        "total_rounds": round_count,
+        "round_labels": {str(n): label for n, label in round_labels.items()},
         "current_round": current["round"] if current else 0,
-        "current_round_label": current["round_label"] if current else "Not started",
+        "current_round_label": current["round_label"] if current else "Chưa bắt đầu",
         "current_speaker_role": current["speaker_role"] if current else None,
         "current_speaker_name": current["speaker_name"] if current else None,
         "mind_changes_count": mind_changes,
@@ -487,21 +536,23 @@ def get_summary(runs_dir: Path, run_id: str) -> dict:
         {"role": r, "name": name, "skills": role_skills.get(r, [])} for r, name in sorted(role_names.items())
     ]
 
+    total_rounds = (meeting.get("meta") or {}).get("round_count") or 5
     if not complete:
         recommendation = (
-            f"Meeting in progress (round {current['round'] if current else 0}/5). "
-            "Consensus not yet reached - do not treat any item below as final."
+            f"Cuộc họp đang diễn ra (vòng {current['round'] if current else 0}/{total_rounds}). "
+            "Chưa đạt đồng thuận cuối - đừng coi bất kỳ mục nào dưới đây là quyết định cuối cùng."
         )
     else:
         consensus = meeting.get("consensus") or {}
-        recommendation = consensus.get("summary", "") + " Human decision required on unresolved items."
+        recommendation = consensus.get("summary", "") + " Cần bạn (người dùng) tự quyết định các mục chưa giải quyết."
 
     return {
         "run_id": run_id,
         "brief": meeting["brief"],
         "participants": participants_with_skills,
         "current_round": current["round"] if current else 0,
-        "current_round_label": current["round_label"] if current else "Not started",
+        "total_rounds": total_rounds,
+        "current_round_label": current["round_label"] if current else "Chưa bắt đầu",
         "is_complete": complete,
         "accepted": accepted,
         "rejected": rejected,
@@ -512,7 +563,7 @@ def get_summary(runs_dir: Path, run_id: str) -> dict:
         "recommendation": recommendation.strip(),
         "last_events": visible[-5:],
         "human_decision_required": True,
-        "note": "This payload reflects only what has happened in the meeting so far. The user makes the final call - do not present unresolved items as decided.",
+        "note": "Payload này chỉ phản ánh những gì đã diễn ra trong cuộc họp tính đến hiện tại. Người dùng là người quyết định cuối cùng - không trình bày các mục chưa giải quyết như đã được quyết định.",
     }
 
 

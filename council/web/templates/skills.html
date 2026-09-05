@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Skill Catalog{% endblock %}
+{% block title %}Danh mục Skill{% endblock %}
 {% block content %}
 <div class="page-header">
   <div>
-    <h1>Skill Catalog</h1>
-    <p class="subtitle">Skills are professional competencies that can be attached to a role. Data-driven from <code>council/agents/skills.yaml</code> - assign them to a role on the <a href="/roles">Role Catalog</a> page.</p>
+    <h1>Danh mục Skill</h1>
+    <p class="subtitle">Skill là năng lực chuyên môn có thể gán cho một role. Dữ liệu lấy từ <code>council/agents/skills.yaml</code> - gán skill cho role tại trang <a href="/roles">Danh mục Role</a>.</p>
   </div>
 </div>
 
@@ -15,7 +15,7 @@
   <div class="card">
     <div class="flex-between">
       <span class="role-name">{{ skill.name }}</span>
-      <span class="badge {{ 'badge-success' if skill.enabled else 'badge-muted' }}">{{ 'enabled' if skill.enabled else 'disabled' }}</span>
+      <span class="badge {{ 'badge-success' if skill.enabled else 'badge-muted' }}">{{ 'bật' if skill.enabled else 'tắt' }}</span>
     </div>
     <p class="role-desc" style="margin-top:6px;">{{ skill.description }}</p>
     <p class="hint" style="margin-top:8px;"><code>{{ skill.id }}</code></p>

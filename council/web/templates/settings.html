@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Settings{% endblock %}
+{% block title %}Cài đặt{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div><h1>Settings</h1><p class="subtitle">Read-only V0 info. Configure real providers via .env, not here.</p></div>
+  <div><h1>Cài đặt</h1><p class="subtitle">Thông tin chỉ đọc trong V0. Cấu hình provider thật qua .env, không phải ở đây.</p></div>
 </div>
 
 <div class="card">
-  <div class="section-title">Version</div>
+  <div class="section-title">Phiên bản</div>
   <p>{{ version }}</p>
-  <div class="section-title">Runs directory</div>
+  <div class="section-title">Thư mục runs</div>
   <p><code>{{ runs_dir }}</code></p>
   <div class="section-title">Providers</div>
   <ul class="observer-list">
@@ -16,6 +16,6 @@
     <li><strong>{{ p.name }}</strong> - <span class="badge {{ 'badge-success' if p.status == 'ready' else 'badge-muted' }}">{{ p.status }}</span> - {{ p.reason }}</li>
     {% endfor %}
   </ul>
-  <p class="hint">To enable a real provider, copy <code>.env.example</code> to <code>.env</code> and fill in credentials, then restart <code>python -m council serve</code>.</p>
+  <p class="hint">Để bật provider thật, copy <code>.env.example</code> thành <code>.env</code> và điền credentials, sau đó khởi động lại <code>python -m council serve</code>.</p>
 </div>
 {% endblock %}

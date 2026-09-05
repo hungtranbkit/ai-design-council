@@ -66,6 +66,17 @@ class Provider:
         """
         raise NotImplementedError
 
+    def supports_rounds(self, brief_text: str, rounds: int) -> bool:
+        """Whether this provider can actually produce `rounds` rounds of
+        content for this brief. Real providers (Anthropic/OpenAI) generate
+        content live, so they support any round count - always True here.
+        MockProvider overrides this: it can only run a round count for
+        which it has a hand-authored deterministic scenario matching the
+        brief text (see providers/mock.py's scenario registry). Checked by
+        council/web/meeting_store.py before starting a run, so a mismatched
+        request fails fast with a clear message instead of partway through."""
+        return True
+
     @staticmethod
     def _timed(fn):
         start = time.perf_counter()

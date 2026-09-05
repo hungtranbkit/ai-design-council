@@ -1,89 +1,87 @@
 {% extends "base.html" %}
-{% block title %}{{ run_id }} · Meeting Room{% endblock %}
+{% block title %}{{ run_id }} · Phòng họp{% endblock %}
 {% block content %}
 <div class="page-header">
   <div>
-    <h1>Meeting Room</h1>
+    <h1>Phòng họp</h1>
     <p class="subtitle">{{ run_id }} · <span id="header-status">provider: {{ meeting.meta.provider }}</span></p>
   </div>
   <div>
-    <a class="btn" href="/meetings/{{ run_id }}/decisions">Human Decision Center →</a>
+    <a class="btn" href="/meetings/{{ run_id }}/decisions">Trung tâm Quyết định →</a>
   </div>
 </div>
 
 <div class="meta-strip">
   <span>Provider: <b id="meta-provider">{{ meeting.meta.provider }}</b></span>
-  <span>Model: <b id="meta-model">{{ meeting.meta.model or 'default' }}</b></span>
-  <span>Status: <b id="meta-status">-</b></span>
-  <span>Elapsed: <b id="meta-elapsed">-</b></span>
+  <span>Model: <b id="meta-model">{{ meeting.meta.model or 'mặc định' }}</b></span>
+  <span>Trạng thái: <b id="meta-status">-</b></span>
+  <span>Thời gian đã chạy: <b id="meta-elapsed">-</b></span>
 </div>
 
 <div class="progress-header" id="progress-header">
-  <div class="round-step" data-round="1">R1 · Proposal</div>
-  <div class="round-step" data-round="2">R2 · Cross Review</div>
-  <div class="round-step" data-round="3">R3 · Devil's Advocate</div>
-  <div class="round-step" data-round="4">R4 · Defense</div>
-  <div class="round-step" data-round="5">R5 · Consensus</div>
+  <div class="round-steps" id="round-steps">
+    <p class="hint">Đang tải tiến trình…</p>
+  </div>
   <div class="progress-stats">
-    <span>Mind changes: <b id="stat-mind-changes">0</b></span>
-    <span>Accepted: <b id="stat-accepted">0</b></span>
-    <span>Rejected: <b id="stat-rejected">0</b></span>
-    <span>Unresolved: <b id="stat-unresolved">0</b></span>
+    <span>Đổi ý: <b id="stat-mind-changes">0</b></span>
+    <span>Chấp nhận: <b id="stat-accepted">0</b></span>
+    <span>Từ chối: <b id="stat-rejected">0</b></span>
+    <span>Chưa giải quyết: <b id="stat-unresolved">0</b></span>
   </div>
 </div>
 
 <div class="room-grid">
   <div class="participant-panel" id="participant-panel">
-    <p class="hint">Loading participants…</p>
+    <p class="hint">Đang tải danh sách người tham gia…</p>
   </div>
 
   <div>
     <div class="table-room" id="table-room">
-      <div class="table-surface"><div class="table-caption">QR Ordering Restaurant<br>council session</div></div>
+      <div class="table-surface"><div class="table-caption">Bàn họp<br>AI Design Council</div></div>
       {% for role in seat_roles %}
       <div class="seat waiting seat-{{ loop.index }}" data-role="{{ role.id }}">
         <div class="seat-avatar">{{ role.display_name[0] }}</div>
         <div class="seat-name">{{ role.display_name }}</div>
-        <div class="seat-status">waiting</div>
+        <div class="seat-status">đang chờ</div>
       </div>
       {% endfor %}
     </div>
-    <p class="hint">Click a seat (or a name in the participant list) to open that role's Round 1 / Round 4 artifact.</p>
+    <p class="hint">Bấm vào một ghế (hoặc tên trong danh sách người tham gia) để xem artifact của role đó.</p>
   </div>
 
   <div class="transcript-panel">
     <div class="filter-row">
-      <button class="filter-chip active" data-filter="all">All</button>
-      <button class="filter-chip" data-filter="proposal">Proposal</button>
-      <button class="filter-chip" data-filter="agree">Agree</button>
-      <button class="filter-chip" data-filter="disagree">Disagree</button>
-      <button class="filter-chip" data-filter="risk">Risk</button>
-      <button class="filter-chip" data-filter="mind_change">Mind Change</button>
-      <button class="filter-chip" data-filter="decision">Decision</button>
-      <button class="filter-chip" data-filter="unresolved">Unresolved</button>
+      <button class="filter-chip active" data-filter="all">Tất cả</button>
+      <button class="filter-chip" data-filter="proposal">Đề xuất</button>
+      <button class="filter-chip" data-filter="agree">Đồng ý</button>
+      <button class="filter-chip" data-filter="disagree">Phản biện</button>
+      <button class="filter-chip" data-filter="risk">Rủi ro</button>
+      <button class="filter-chip" data-filter="mind_change">Đổi ý</button>
+      <button class="filter-chip" data-filter="decision">Quyết định</button>
+      <button class="filter-chip" data-filter="unresolved">Chưa giải quyết</button>
     </div>
     <div class="transcript-scroll" id="transcript-scroll">
-      <p class="hint">Loading transcript…</p>
+      <p class="hint">Đang tải transcript…</p>
     </div>
   </div>
 </div>
 
 <div class="card observer-panel">
   <h3>🔎 ChatGPT Observer</h3>
-  <p class="observer-note">Read-only view of what an external ChatGPT reading <code>/api/meetings/{{ run_id }}/summary</code> would see right now. It cannot decide anything - only the user can.</p>
+  <p class="observer-note">Góc nhìn read-only của một ChatGPT bên ngoài đọc <code>/api/meetings/{{ run_id }}/summary</code> ngay lúc này. Nó không thể tự quyết định gì cả - chỉ có bạn (người dùng) mới được quyết định.</p>
   <div id="observer-body">
-    <p class="hint">Loading…</p>
+    <p class="hint">Đang tải…</p>
   </div>
 </div>
 
 <div class="metrics-strip" id="metrics-strip">
-  <p class="hint">Loading metrics…</p>
+  <p class="hint">Đang tải metrics…</p>
 </div>
-<p class="hint" style="margin-top:8px;"><a href="/meetings/{{ run_id }}#" onclick="fetchAllArtifacts('{{ run_id }}'); return false;">View all raw artifacts</a></p>
+<p class="hint" style="margin-top:8px;"><a href="/meetings/{{ run_id }}#" onclick="fetchAllArtifacts('{{ run_id }}'); return false;">Xem toàn bộ artifact gốc</a></p>
 
 <div id="artifact-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(10,14,25,0.45); z-index:50;">
   <div style="max-width:640px; margin:60px auto; background:var(--bg-panel); border-radius:var(--radius); padding:18px 20px; max-height:75vh; overflow:auto; box-shadow:var(--shadow);">
-    <div class="flex-between"><strong id="artifact-modal-title">Artifact</strong><button class="btn btn-sm" onclick="closeArtifactModal()">Close</button></div>
+    <div class="flex-between"><strong id="artifact-modal-title">Artifact</strong><button class="btn btn-sm" onclick="closeArtifactModal()">Đóng</button></div>
     <pre id="artifact-modal-content" style="white-space:pre-wrap; font-size:12px; margin-top:10px;"></pre>
   </div>
 </div>

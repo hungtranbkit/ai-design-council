@@ -29,6 +29,11 @@ def client(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def created_meeting(client):
+    """5-round meeting on the QR-restaurant brief (MockProvider's original
+    scenario, English) - `rounds` must be explicit now that the API defaults
+    to 10 (MockProvider only has a 10-round scenario for the POS-retail
+    brief - see created_meeting_10round below and
+    tests/test_language_and_scenarios.py for why)."""
     resp = client.post(
         "/api/meetings",
         json={
@@ -37,7 +42,21 @@ def created_meeting(client):
             "provider": "mock",
             "role_skills": {"architect": ["architecture-review"]},
             "playback_enabled": False,
+            "rounds": 5,
         },
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()["run_id"]
+
+
+@pytest.fixture()
+def created_meeting_10round(client):
+    """10-round meeting on the Vietnamese POS-retail brief - the only brief
+    MockProvider has a full 10-round scenario for."""
+    brief = (Path(__file__).resolve().parent.parent / "examples" / "pos_retail_vn.md").read_text(encoding="utf-8")
+    resp = client.post(
+        "/api/meetings",
+        json={"brief_text": brief, "brief_name": "test10", "provider": "mock", "role_skills": {}, "playback_enabled": False},
     )
     assert resp.status_code == 201, resp.text
     return resp.json()["run_id"]
@@ -280,6 +299,7 @@ def test_model_override_is_ignored_for_mock_but_forwarded_to_real_providers(clie
         model="some-model-mock-does-not-take",
         role_skills={},
         playback_enabled=False,
+        rounds=5,
     )
     assert captured["mock"] == {}
     meta = json.loads((store.DEFAULT_RUNS_DIR / run_id / "meta.json").read_text())

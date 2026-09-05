@@ -1,18 +1,18 @@
 {% extends "base.html" %}
-{% block title %}New Council Session{% endblock %}
+{% block title %}Cuộc họp Council mới{% endblock %}
 {% block content %}
 <div class="page-header">
   <div>
-    <h1>New Council Session</h1>
-    <p class="subtitle">Write a brief, pick a provider/model, review the roles, then start the meeting.</p>
+    <h1>Cuộc họp Council mới</h1>
+    <p class="subtitle">Viết đề bài, chọn provider/model, xem lại các role, rồi bắt đầu cuộc họp.</p>
   </div>
 </div>
 
 <div class="form-grid">
   <div>
-    <label class="field-label" for="brief_text">Project brief</label>
+    <label class="field-label" for="brief_text">Đề bài dự án</label>
     <textarea id="brief_text">{{ example_brief }}</textarea>
-    <p class="hint">Prefilled with the demo QR-restaurant brief - edit or clear it.</p>
+    <p class="hint">Điền sẵn đề bài demo QR-restaurant (chỉ hỗ trợ 5 vòng với mock provider) - hãy sửa hoặc xóa để dùng đề bài của bạn.</p>
 
     <div class="section-title">Provider</div>
     <div class="provider-grid" id="provider-grid">
@@ -26,16 +26,20 @@
     </div>
     <p class="hint" id="provider-reason"></p>
 
-    <label class="field-label" for="model_override" style="margin-top:12px;">Model (optional override)</label>
-    <input type="text" id="model_override" placeholder="mock has no model">
-    <p class="hint">Leave blank to use the selected provider's default model.</p>
+    <label class="field-label" for="model_override" style="margin-top:12px;">Model (tùy chọn, ghi đè mặc định)</label>
+    <input type="text" id="model_override" placeholder="mock không cần model">
+    <p class="hint">Để trống để dùng model mặc định của provider đã chọn.</p>
+
+    <div class="section-title">Số vòng thảo luận</div>
+    <label><input type="radio" name="rounds" value="10" checked> 10 vòng (khuyến nghị - phân tích sâu, cần brief có kịch bản 10 vòng nếu dùng mock provider)</label><br>
+    <label><input type="radio" name="rounds" value="5"> 5 vòng (nhanh - tương thích đề bài demo QR-restaurant/SSH-ops với mock provider)</label>
 
     <div class="section-title">Playback</div>
-    <label><input type="checkbox" id="playback_enabled" checked> Play back gradually (~0.5-1.5s per turn) so the meeting is watchable live</label>
+    <label><input type="checkbox" id="playback_enabled" checked> Phát lại tuần tự (~0.5-1.5s mỗi lượt) để xem cuộc họp diễn ra như thật</label>
   </div>
 
   <div>
-    <div class="section-title">Council (fixed roles in V0)</div>
+    <div class="section-title">Council (role cố định trong V0)</div>
     {% for role in debater_roles %}
     <div class="role-card">
       <div class="role-card-head">
@@ -45,7 +49,7 @@
           <div class="role-desc">{{ role.description }}</div>
         </div>
         <div style="margin-left:auto">
-          <input type="checkbox" checked disabled title="V0 requires all 6 core roles - toggling planned for V1">
+          <input type="checkbox" checked disabled title="V0 yêu cầu đủ 6 role cốt lõi - cho phép bật/tắt sẽ có ở V1">
         </div>
       </div>
       <div class="skill-tags" data-role="{{ role.id }}">
@@ -64,7 +68,7 @@
           <div class="role-desc">{{ moderator_role.description }}</div>
         </div>
       </div>
-      <p class="hint" style="margin-top:6px;">Synthesizes Round 5 consensus - not seated at the table, always included.</p>
+      <p class="hint" style="margin-top:6px;">Tổng hợp đồng thuận ở vòng cuối cùng (Round 5 hoặc Round 10) - không ngồi ở bàn họp nhưng luôn tham gia.</p>
       <div class="skill-tags" data-role="{{ moderator_role.id }}">
         {% for skill_id in moderator_role.skills %}
         <span class="skill-tag on" data-skill="{{ skill_id }}">{{ skill_id.replace('_', ' ') }}</span>
@@ -72,12 +76,12 @@
       </div>
     </div>
 
-    <p class="locked-note">Role participation is locked in V0 (the pipeline and MockProvider script are written for exactly these 7). Skill tags are informational/display metadata for this session - edit defaults on the Roles &amp; Skills page.</p>
+    <p class="locked-note">Danh sách role bị khóa trong V0 (pipeline và kịch bản MockProvider được viết cho đúng 7 role này). Skill tag chỉ mang tính hiển thị cho phiên này - sửa mặc định tại trang Danh mục Role &amp; Skill.</p>
   </div>
 </div>
 
 <div style="margin-top:20px; display:flex; gap:10px; align-items:center;">
-  <button class="btn btn-primary" id="start-meeting-btn">Start Meeting</button>
+  <button class="btn btn-primary" id="start-meeting-btn">Bắt đầu họp</button>
   <span id="start-meeting-error" class="hint" style="color:var(--danger)"></span>
 </div>
 {% endblock %}

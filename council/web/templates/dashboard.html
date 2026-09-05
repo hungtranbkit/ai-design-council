@@ -1,21 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Meetings · AI Design Council{% endblock %}
+{% block title %}Cuộc họp · AI Design Council{% endblock %}
 {% block content %}
 <div class="page-header">
   <div>
-    <h1>Meetings</h1>
-    <p class="subtitle">Recent council sessions and single-agent runs, read straight from <code>runs/</code>.</p>
+    <h1>Cuộc họp</h1>
+    <p class="subtitle">Các phiên council và run single-agent gần đây, đọc trực tiếp từ <code>runs/</code>.</p>
   </div>
   <div style="display:flex; gap:10px;">
-    <button class="btn" id="run-demo-btn" onclick="runDemoMeeting(this)">▶ Run Demo Meeting</button>
-    <a class="btn btn-primary" href="/sessions/new">+ New Council Session</a>
+    <button class="btn" id="run-demo-btn" onclick="runDemoMeeting(this)">▶ Chạy Demo 5 vòng</button>
+    <button class="btn" id="run-demo-extended-btn" onclick="runDemoMeetingExtended(this)">▶ Chạy Demo 10 vòng (tiếng Việt)</button>
+    <a class="btn btn-primary" href="/sessions/new">+ Cuộc họp Council mới</a>
   </div>
 </div>
 <p class="hint" id="run-demo-error" style="color:var(--danger); margin-top:-8px; margin-bottom:16px;"></p>
 
 {% if not meetings %}
 <div class="card empty-state">
-  No runs yet. Click <strong>Run Demo Meeting</strong> above for an instant mock council session on the QR-restaurant brief, start your own via <strong>New Council Session</strong>, or run <code>python -m council run --brief examples/qr_restaurant.md --provider mock</code> from the CLI.
+  Chưa có run nào. Bấm <strong>Chạy Demo 10 vòng (tiếng Việt)</strong> ở trên để xem ngay phiên council mock 10 vòng (đề bài phần mềm quản lý bán hàng), bấm <strong>Chạy Demo 5 vòng</strong> cho demo nhanh trên đề bài QR-restaurant, tự tạo phiên riêng qua <strong>Cuộc họp Council mới</strong>, hoặc chạy <code>python -m council run --brief examples/qr_restaurant.md --provider mock</code> từ CLI.
 </div>
 {% else %}
 <div class="meeting-list">
@@ -27,7 +28,7 @@
       {% else %}
         <span class="title">{{ m.run_id }}</span>
       {% endif %}
-      <div class="meta-line">{{ m.brief_excerpt or "(no brief excerpt)" }}</div>
+      <div class="meta-line">{{ m.brief_excerpt or "(không có trích đoạn brief)" }}</div>
     </div>
     <div>
       <span class="badge {{ 'badge-success' if m.status == 'completed' else 'badge-warning' }}">{{ m.status }}</span>
@@ -35,17 +36,17 @@
     </div>
     <div class="meta-line">
       {% if m.is_meeting %}
-        Round: <strong>{{ m.current_round or '-' }}/5</strong> - {{ m.current_round_label }}<br>
-        Agents: {{ m.participants | length }}
+        Vòng: <strong>{{ m.current_round or '-' }}/{{ m.total_rounds or 5 }}</strong> - {{ m.current_round_label }}<br>
+        Tác nhân: {{ m.participants | length }}
       {% else %}
-        Single-agent baseline (no rounds)
+        Single-agent baseline (không có vòng)
       {% endif %}
     </div>
     <div class="stats">
-      <div class="stat"><div class="num">{{ m.metrics.requirements_count if m.metrics.requirements_count is not none else '-' }}</div><div class="label">Reqs</div></div>
-      <div class="stat"><div class="num">{{ m.metrics.risks_count if m.metrics.risks_count is not none else '-' }}</div><div class="label">Risks</div></div>
-      <div class="stat"><div class="num">{{ m.metrics.mind_changes_count if m.metrics.mind_changes_count is not none else '-' }}</div><div class="label">Changes</div></div>
-      <div class="stat"><div class="num">{{ m.metrics.unresolved_count if m.metrics.unresolved_count is not none else '-' }}</div><div class="label">Unresolved</div></div>
+      <div class="stat"><div class="num">{{ m.metrics.requirements_count if m.metrics.requirements_count is not none else '-' }}</div><div class="label">Yêu cầu</div></div>
+      <div class="stat"><div class="num">{{ m.metrics.risks_count if m.metrics.risks_count is not none else '-' }}</div><div class="label">Rủi ro</div></div>
+      <div class="stat"><div class="num">{{ m.metrics.mind_changes_count if m.metrics.mind_changes_count is not none else '-' }}</div><div class="label">Đổi ý</div></div>
+      <div class="stat"><div class="num">{{ m.metrics.unresolved_count if m.metrics.unresolved_count is not none else '-' }}</div><div class="label">Chưa xong</div></div>
     </div>
   </div>
   {% endfor %}

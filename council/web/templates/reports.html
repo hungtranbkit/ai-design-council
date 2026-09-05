@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Reports{% endblock %}
+{% block title %}Báo cáo{% endblock %}
 {% block content %}
 <div class="page-header">
   <div>
-    <h1>Reports</h1>
-    <p class="subtitle">Final reports and A/B comparisons produced so far.</p>
+    <h1>Báo cáo</h1>
+    <p class="subtitle">Báo cáo cuối cùng và các so sánh A/B đã tạo cho tới nay.</p>
   </div>
 </div>
 
-<div class="section-title">Final reports</div>
+<div class="section-title">Báo cáo cuối cùng</div>
 {% if not meetings %}
-<div class="card empty-state">No completed runs yet.</div>
+<div class="card empty-state">Chưa có run nào hoàn tất.</div>
 {% endif %}
 {% for m in meetings %}
 <div class="card">
@@ -19,14 +19,14 @@
     <span class="badge badge-muted">{{ m.mode }}</span>
   </div>
   <p class="hint">{{ m.brief_excerpt }}</p>
-  <button class="btn btn-sm" onclick="toggleReport('{{ m.run_id }}')">View final_report.md</button>
+  <button class="btn btn-sm" onclick="toggleReport('{{ m.run_id }}')">Xem final_report.md</button>
   <pre id="report-{{ m.run_id }}" style="display:none; white-space:pre-wrap; font-size:12px; margin-top:10px;"></pre>
 </div>
 {% endfor %}
 
-<div class="section-title">A/B comparisons (council vs single-agent)</div>
+<div class="section-title">So sánh A/B (council vs single-agent)</div>
 {% if not comparisons %}
-<div class="card empty-state">No comparisons yet. Run <code>python -m council compare --brief examples/qr_restaurant.md --provider mock</code>.</div>
+<div class="card empty-state">Chưa có so sánh nào. Chạy <code>python -m council compare --brief examples/qr_restaurant.md --provider mock</code>.</div>
 {% endif %}
 {% for c in comparisons %}
 <div class="card">
@@ -36,7 +36,7 @@
     {% for k, v in c.deltas.items() %}<li>{{ k }}: +{{ v }}</li>{% endfor %}
   </ul>
   {% if c.council_only_insights %}
-  <p class="hint"><strong>Council-only insights:</strong></p>
+  <p class="hint"><strong>Insight chỉ có ở Council:</strong></p>
   <ul class="observer-list">{% for i in c.council_only_insights %}<li>{{ i }}</li>{% endfor %}</ul>
   {% endif %}
 </div>

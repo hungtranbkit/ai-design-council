@@ -26,7 +26,72 @@ resolves each contested topic with evidence and rationale - not a vote count -
 and explicitly marks some items **unresolved** because they're business/policy
 calls outside the council's authority.
 
-## The 5 rounds
+## The 10 rounds (default, Web UI) vs. the legacy 5 rounds (CLI)
+
+The **Web UI defaults every new meeting to a 10-round pipeline**
+(`council/pipeline/orchestrator_extended.py`, `ExtendedCouncilOrchestrator`) -
+a deeper-analysis redesign of the original 5-round pipeline, not just the same
+content split in half. The **CLI (`python -m council run`) still runs the
+original, untouched 5-round `CouncilOrchestrator`** - both pipelines coexist on
+purpose, so every earlier run/test/artifact-reader keeps working exactly as
+before while new meetings get the deeper pipeline. A run's `meta.json` records
+`round_count` (5 or 10) and the web UI dispatches its transcript/status readers
+on that field, so old 5-round runs remain fully viewable.
+
+**All agent-generated content defaults to natural Vietnamese** (proposal,
+cross-review, critique, defense, revision, consensus, observer summary,
+final report) - only necessary technical terms stay in English. This is
+driven by `language="vi"` (the web UI's default; `LANGUAGE_INSTRUCTIONS` in
+`council/pipeline/orchestrator.py` prepends a Vietnamese instruction to every
+role's system_prompt for real providers - MockProvider's demo scenarios are
+simply hand-authored in Vietnamese already, since it never reads
+`system_prompt`).
+
+### The 10 rounds
+
+1. **R1 - Hiểu bài toán & giả định (`ProblemUnderstanding`)** - every role reads
+   *only the brief* and must state its own interpretation, assumptions,
+   clarifying questions, and uncertainty **before proposing anything** -
+   genuinely new: the old Round 1 jumped straight to a solution.
+2. **R2 - Đề xuất giải pháp (`Proposal`)** - independent proposals, same shape
+   as the old Round 1, informed only by that same role's own R1 output
+   (never another role's - structural isolation, see
+   `tests/test_extended_orchestrator.py`). Requirements are tagged
+   MUST/SHOULD/COULD (`priority_tags`).
+3. **R3 - Phản biện chéo: Yêu cầu / UX / Kinh doanh** - cross-review authored
+   by the business/UX-facing roles (product_ba, ux_designer, business_critic).
+4. **R4 - Phản biện chéo: Kiến trúc / Bảo mật / Vận hành** - cross-review
+   authored by the technical roles (architect, qa_security, devils_advocate).
+   R3+R4 together cover the same 12 reviewer→target pairs the 5-round
+   pipeline's single review round does, split by the reviewer's own lens.
+5. **R5 - Devil's Advocate** - same mandatory ≥5-findings-across-7-categories
+   shape as the old Round 3, now informed by two review rounds instead of one.
+6. **R6 - Phương án thay thế (`AlternativeProposal`)** - NEW: every role must
+   produce a genuine "option B" for one of its own R2 decisions, with ≥2
+   concrete trade-offs (schema-enforced) - not just an optimization of option A.
+7. **R7 - Bảo vệ & sửa quan điểm (`Defense`)** - same Defense/`ChangedDecision`
+   shape as the old Round 4 (before→after→reason), now informed by R3+R4+R5+R6.
+8. **R8 - Edge case & Pre-mortem (`PreMortemFinding`)** - NEW: assume the
+   project failed ~6 months in; every role names a concrete failure scenario
+   and root cause from its own lens (abuse_case/operational/technical/business).
+9. **R9 - Hội tụ / Convergence (`ConvergenceReport`)** - NEW: an honest
+   inventory of what's still contradictory or dependent before the final
+   round - not a decision itself.
+10. **R10 - Đồng thuận cuối / Moderator (`ConsensusReport`)** - same synthesis
+    shape as the old Round 5 (accepted/rejected/unresolved + evidence-based
+    rationale, never a majority vote, dissent kept where unresolved), now
+    informed by 9 rounds instead of 4, plus an implementation priority
+    (P0/P1/P2) per accepted item.
+
+Every extended-round system_prompt is prepended with a standing
+`DISCIPLINE_INSTRUCTIONS` block (state assumptions, cite evidence, name ≥2
+risks/trade-offs, rebut specific points not generically, MUST/SHOULD/COULD,
+no rubber-stamping, explicit before→after→reason on a mind change, mark
+uncertainty instead of fabricating) - the lightest hook for a real LLM
+provider to follow the same discipline MockProvider's hand-authored content
+already demonstrates.
+
+### The legacy 5 rounds (`CouncilOrchestrator`, unchanged)
 
 1. **Independent proposals** - each of 6 agents proposes a design with zero
    visibility into any other agent's output (structurally enforced, see
@@ -168,25 +233,32 @@ python -m council serve --port 8080     # custom port
 python -m council serve --reload        # dev mode
 ```
 
-Pages: **Meetings** (dashboard) → **New Council Session** (brief,
-provider/model, roles + skills review, playback toggle) → **Meeting Room**
-(round table + live transcript + ChatGPT Observer) → **Human Decision
-Center** (Approve / Reject / Defer / Pending per topic, with your notes) →
-**Role Catalog & Skills** (7 roles - 6 debaters + the Moderator/ChatGPT
-Observer - each with description, runtime/provider, status, and editable
-skills) → **Reports** → **Settings**.
+Pages (all Vietnamese-labeled): **Cuộc họp** (dashboard, with a **Chạy Demo 5
+vòng** and a **Chạy Demo 10 vòng (tiếng Việt)** button) → **Cuộc họp Council
+mới** (brief, provider/model, a 5-vs-10-round selector, roles + skills review,
+playback toggle) → **Phòng họp** (round table + live transcript + ChatGPT
+Observer, with a dynamic 5- or 10-chip round progress bar rendered from
+`status.total_rounds`/`status.round_labels`) → **Trung tâm Quyết định**
+(Chấp nhận / Từ chối / Tạm hoãn / Chưa quyết định per topic, with your notes)
+→ **Danh mục Role & Skill** → **Báo cáo** → **Cài đặt**.
 
 This phase supports **mock + Anthropic + OpenAI**; Ollama's code/API entry
 still exists (untouched) but is intentionally left out of the New Session
 provider picker for now - a scope decision, not a regression.
 
-Starting a session runs the *entire* 5-round pipeline immediately (the mock
-provider is instant), then reveals it gradually - a random 0.5-1.5s delay per
-transcript event, computed statelessly from a fixed per-run schedule (so it
-survives a server restart, no background worker needed) - purely so a human
-can watch it happen. Uncheck "Play back gradually" to see the finished
-meeting immediately. This playback layer is entirely separate from the CLI
-and does not slow it down.
+Starting a session runs the *entire* pipeline (5 or 10 rounds) immediately
+(the mock provider is instant), then reveals it gradually - a random
+0.5-1.5s delay per transcript event, computed statelessly from a fixed
+per-run schedule (so it survives a server restart, no background worker
+needed) - purely so a human can watch it happen. Uncheck "Phát lại tuần tự"
+to see the finished meeting immediately. This playback layer is entirely
+separate from the CLI and does not slow it down.
+
+`POST /api/meetings/demo-extended` (and the dashboard's second demo button)
+runs a full 10-round, Vietnamese, MockProvider meeting on
+`examples/pos_retail_vn.md` (a POS/quản-lý-bán-hàng brief for Vietnamese
+small merchants) - the same "instant realistic demo" role the original
+`POST /api/meetings/demo` plays for the 5-round QR-restaurant scenario.
 
 ### Read-only API (for an external ChatGPT/observer to poll)
 
@@ -202,9 +274,16 @@ GET  /api/meetings/{run_id}/decisions             current Human Decision Center 
 POST /api/meetings/{run_id}/decisions             save decisions (writes human_decisions.json +
                                                    final_summary_for_chatgpt.json)
 GET  /api/roles · /api/skills · /api/providers    role/skill config + provider readiness
-POST /api/meetings                                start a new council session
+POST /api/meetings                                start a new council session (rounds: 5 or 10, default 10)
+POST /api/meetings/demo                           instant 5-round QR-restaurant MockProvider demo
+POST /api/meetings/demo-extended                  instant 10-round, Vietnamese POS-retail MockProvider demo
 PATCH /api/roles/{role_id}/skills                 edit a role's skill tags
 ```
+
+`status` additionally carries `total_rounds` and `round_labels` (a
+`{"1": "Hiểu bài toán & giả định", ..., "10": "Đồng thuận cuối (Moderator)"}`
+map for a 10-round meeting, or the 5 legacy labels otherwise) so the web UI's
+progress bar and the Observer's "đang ở vòng X/N" line are pipeline-agnostic.
 
 `/summary` only reflects events *revealed so far* during playback (so an
 external reader never sees "spoilers" ahead of the visible meeting) and its
@@ -246,12 +325,19 @@ this repo's own deployment: one named tunnel per app, never the shared root
 pytest -q
 ```
 
-Covers: round-1 isolation, schema validation (including rejecting rubber-stamp
-reviews/critiques), mind-change detection (>=3 recorded, spanning >=2 agents),
-non-overwriting artifact directories, the A/B comparison harness, the web
-API (meeting creation, status/transcript/summary payloads, human decisions,
-path-traversal-guarded artifact reads, non-destructive reads), and
-server-rendered page smoke tests.
+Covers: round-1 isolation (both pipelines), schema validation (including
+rejecting rubber-stamp reviews/critiques, and enforcing ≥2 trade-offs on a
+10-round alternative), mind-change detection (>=3 recorded, spanning >=2
+agents, on both pipelines), non-overwriting artifact directories, the A/B
+comparison harness, the web API (meeting creation for 5 and 10 rounds,
+status/transcript/summary payloads including `total_rounds`/`round_labels`,
+human decisions, path-traversal-guarded artifact reads, non-destructive
+reads), and server-rendered page smoke tests (including the 10-round Meeting
+Room's dynamic round-progress chips). `tests/test_extended_orchestrator.py`
+and `tests/test_web_10round.py` are dedicated to the 10-round pipeline
+specifically: round ordering (R1→R10), R1/R2 independence, Vietnamese
+language-instruction propagation, non-empty Devil's Advocate findings,
+alternative-round trade-off enforcement, and mind-change before/after/reason.
 
 ## Next steps for the remaining provider
 

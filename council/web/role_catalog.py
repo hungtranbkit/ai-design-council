@@ -69,9 +69,9 @@ def build_role_catalog() -> dict:
     return {
         "roles": roles,
         "runtime_note": (
-            "V0 runs the whole council on one shared provider (not per-role); "
-            "per-role provider selection is a planned V1 feature. The ChatGPT Observer "
-            "is a separate, deterministic summarizer in V0 - it does not call an LLM."
+            "V0 chạy toàn bộ council trên một provider dùng chung (không chọn riêng theo role); "
+            "chọn provider riêng cho từng role là tính năng dự kiến ở V1. ChatGPT Observer "
+            "là một bộ tổng hợp deterministic riêng biệt trong V0 - không gọi LLM."
         ),
         "default_provider": provider_name,
         "default_provider_status": provider["status"],

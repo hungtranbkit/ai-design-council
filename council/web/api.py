@@ -58,6 +58,7 @@ def api_create_meeting(body: NewMeetingRequest):
             provider_name=body.provider,
             model=body.model,
             language=body.language,
+            rounds=body.rounds,
             role_skills=body.role_skills,
             playback_enabled=body.playback_enabled,
         )
@@ -73,6 +74,15 @@ def api_run_demo_meeting():
     Session form, just with fixed, always-available defaults (never fails
     on a missing provider key, since it's hardcoded to mock)."""
     run_id = store.create_demo_meeting(store.DEFAULT_RUNS_DIR)
+    return {"run_id": run_id}
+
+
+@router.post("/meetings/demo-extended", status_code=201)
+def api_run_demo_meeting_extended():
+    """One-click 10-round Vietnamese demo: examples/pos_retail_vn.md (phần
+    mềm quản lý bán hàng cho tiểu thương), mock provider - the only brief
+    MockProvider has a full 10-round scenario for in V0."""
+    run_id = store.create_demo_meeting_extended(store.DEFAULT_RUNS_DIR)
     return {"run_id": run_id}
 
 

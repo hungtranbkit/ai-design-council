@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}AI Design Council{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css?v=10round1">
   <link rel="icon" href="data:,">
 </head>
 <body>
@@ -14,20 +14,20 @@
         <span class="brand-mark">AI</span>
         <span class="brand-text">Design Council</span>
       </div>
-      <a class="nav-link {{ 'active' if active_nav == 'meetings' else '' }}" href="/">Meetings</a>
-      <a class="nav-link {{ 'active' if active_nav == 'roles' else '' }}" href="/roles">Role Catalog</a>
-      <a class="nav-link {{ 'active' if active_nav == 'skills' else '' }}" href="/skills">Skill Catalog</a>
-      <a class="nav-link {{ 'active' if active_nav == 'reports' else '' }}" href="/reports">Reports</a>
-      <a class="nav-link {{ 'active' if active_nav == 'settings' else '' }}" href="/settings">Settings</a>
+      <a class="nav-link {{ 'active' if active_nav == 'meetings' else '' }}" href="/">Cuộc họp</a>
+      <a class="nav-link {{ 'active' if active_nav == 'roles' else '' }}" href="/roles">Danh mục Role</a>
+      <a class="nav-link {{ 'active' if active_nav == 'skills' else '' }}" href="/skills">Danh mục Skill</a>
+      <a class="nav-link {{ 'active' if active_nav == 'reports' else '' }}" href="/reports">Báo cáo</a>
+      <a class="nav-link {{ 'active' if active_nav == 'settings' else '' }}" href="/settings">Cài đặt</a>
       <div class="sidebar-footer">
-        <span class="badge badge-mock">V0 · mock provider ready</span>
+        <span class="badge badge-mock">V0 · mock provider sẵn sàng</span>
       </div>
     </nav>
     <main class="content">
       {% block content %}{% endblock %}
     </main>
   </div>
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v=10round1"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
