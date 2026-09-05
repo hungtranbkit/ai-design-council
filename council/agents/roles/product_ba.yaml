@@ -16,8 +16,10 @@ focus_areas:
   - adoption/conversion friction
   - business rules (e.g. billing, table lifecycle)
 default_skills:
-  - product_discovery
-  - requirements_analysis
+  - requirement-discovery
+  - user-story
+  - business-rule-analysis
+  - scope-control
 round1_instructions: >
   Propose the product requirements and key product decisions for this brief,
   independently. You cannot see any other agent's output. List requirements,

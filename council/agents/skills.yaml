@@ -1,31 +1,232 @@
-# Skill catalog - data-driven, used by the web UI's Roles & Skills screens.
-# Adding/editing a skill here requires no code changes. `default_skills` in
-# each role's YAML (council/agents/roles/*.yaml) references these ids.
+# Skill catalog - data-driven, used by the web UI's Skill Catalog + Role
+# Catalog screens. Adding/editing a skill here requires no code changes.
+# `default_skills` in each role's YAML (council/agents/roles/*.yaml)
+# references these ids - see council/agents/role_overrides.py for how a
+# role's *effective* skills are computed (default_skills, overridable per
+# role via the Role Catalog UI / PATCH /api/roles/{id}/skills).
+#
+# Fields: id, name, description, category, recommended_roles (which role
+# ids this skill is meant for - informational, not enforced), enabled
+# (whether this skill appears as pickable at all), prompt_fragment (short
+# guidance text a real-LLM provider's prompt could append when this skill is
+# active - descriptive/optional in V0, not yet wired into MockProvider's
+# deterministic script; see README's "Known V0 limitation" note).
 skills:
-  - id: product_discovery
-    name: Product Discovery
+  # --- Product / Business Analyst ---
+  - id: requirement-discovery
+    name: Requirement Discovery
     description: Uncover the real user needs and business goals behind a brief.
-  - id: requirements_analysis
-    name: Requirements Analysis
-    description: Turn goals into concrete, falsifiable requirements.
-  - id: ux_flow
-    name: UX Flow Design
-    description: Design end-to-end interaction flows for every user role.
-  - id: architecture_review
+    category: discovery
+    recommended_roles: [product_ba]
+    enabled: true
+    prompt_fragment: "Before proposing requirements, state what underlying user/business need each one serves."
+  - id: user-story
+    name: User Story Writing
+    description: Translate goals into concrete user stories with acceptance criteria.
+    category: discovery
+    recommended_roles: [product_ba]
+    enabled: true
+    prompt_fragment: "Write requirements as falsifiable user stories, not vague goals."
+  - id: business-rule-analysis
+    name: Business Rule Analysis
+    description: Identify and formalize the business rules a system must enforce.
+    category: discovery
+    recommended_roles: [product_ba]
+    enabled: true
+    prompt_fragment: "Call out every business rule implied by the brief, even ones nobody stated explicitly."
+  - id: scope-control
+    name: Scope Control
+    description: Push back on scope creep; keep V1 shippable.
+    category: governance
+    recommended_roles: [product_ba]
+    enabled: true
+    prompt_fragment: "Flag anything that reads like a V2 feature disguised as a V1 requirement."
+
+  # --- UX Designer ---
+  - id: mobile-first
+    name: Mobile-First Design
+    description: Design for the smallest, most constrained screen first.
+    category: design
+    recommended_roles: [ux_designer]
+    enabled: true
+    prompt_fragment: "Assume a small phone screen and one-handed use as the primary case, not the exception."
+  - id: usability-review
+    name: Usability Review
+    description: Evaluate a flow's clarity and friction from a real user's perspective.
+    category: design
+    recommended_roles: [ux_designer]
+    enabled: true
+    prompt_fragment: "Count the taps/steps in every flow you propose."
+  - id: interaction-design
+    name: Interaction Design
+    description: Design concrete step-by-step interaction flows.
+    category: design
+    recommended_roles: [ux_designer]
+    enabled: true
+    prompt_fragment: "Describe flows as numbered steps a real user takes, not abstract capabilities."
+  - id: accessibility
+    name: Accessibility
+    description: Ensure flows work for users with disabilities and edge-case devices.
+    category: design
+    recommended_roles: [ux_designer]
+    enabled: true
+    prompt_fragment: "Name at least one accessibility or non-standard-device gap in every flow."
+  - id: kiosk-design
+    name: Kiosk / Shared-Device Design
+    description: Design for public/shared-device and non-personal-phone contexts.
+    category: design
+    recommended_roles: [ux_designer]
+    enabled: true
+    prompt_fragment: "Consider guests without their own working smartphone, not only the median customer."
+
+  # --- Architect ---
+  - id: architecture-review
     name: Architecture Review
-    description: Evaluate system structure, data flow, and technical tradeoffs.
-  - id: security_review
-    name: Security Review
-    description: Find abuse, spoofing, and trust-boundary failure modes.
-  - id: qa_edge_cases
-    name: QA Edge Cases
-    description: Enumerate edge cases and correctness failure modes.
-  - id: cost_review
-    name: Cost Review
-    description: Challenge cost and complexity against real commercial constraints.
-  - id: devils_advocate_skill
-    name: Devil's Advocate
-    description: Actively hunt for hidden assumptions and complacent consensus.
-  - id: consensus_moderation
-    name: Consensus Moderation
-    description: Synthesize a debate into evidence-based accepted/rejected/unresolved decisions.
+    description: Evaluate system structure, service boundaries, and data flow.
+    category: architecture
+    recommended_roles: [architect]
+    enabled: true
+    prompt_fragment: "State the service boundaries explicitly and what data flows across each one."
+  - id: postgres-patterns
+    name: Postgres Patterns
+    description: Apply proven Postgres schema and query patterns.
+    category: architecture
+    recommended_roles: [architect]
+    enabled: true
+    prompt_fragment: "Prefer well-known Postgres patterns (outbox, advisory locks, partial indexes) over bespoke ones."
+  - id: realtime-patterns
+    name: Realtime Patterns
+    description: Choose and justify a realtime transport mechanism (SSE / WebSocket / polling / pub-sub).
+    category: architecture
+    recommended_roles: [architect]
+    enabled: true
+    prompt_fragment: "Justify the realtime transport choice against actual concurrency, not habit."
+  - id: offline-first
+    name: Offline-First Design
+    description: Design for intermittent connectivity and graceful degradation.
+    category: architecture
+    recommended_roles: [architect]
+    enabled: true
+    prompt_fragment: "State what happens to in-flight work when connectivity drops mid-operation."
+  - id: cost-optimization
+    name: Cost Optimization
+    description: Right-size infrastructure against actual expected load and budget.
+    category: architecture
+    recommended_roles: [architect, business_critic]
+    enabled: true
+    prompt_fragment: "Default to the cheapest option that meets the requirement; justify anything heavier."
+
+  # --- Business Critic ---
+  - id: cost-benefit-analysis
+    name: Cost-Benefit Analysis
+    description: Weigh a decision's cost/complexity against its business value.
+    category: business
+    recommended_roles: [business_critic]
+    enabled: true
+    prompt_fragment: "Attach a rough cost/complexity estimate to every technical decision you challenge."
+  - id: pricing-strategy
+    name: Pricing Strategy
+    description: Reason about monetization and pricing models.
+    category: business
+    recommended_roles: [business_critic]
+    enabled: true
+    prompt_fragment: "Ask how this feature set would actually be priced/sold before endorsing it."
+  - id: market-fit-check
+    name: Market Fit Check
+    description: Challenge whether a feature matches the target customer segment.
+    category: business
+    recommended_roles: [business_critic]
+    enabled: true
+    prompt_fragment: "Name the target customer segment explicitly and check every feature against it."
+
+  # --- QA + Security ---
+  - id: threat-model
+    name: Threat Modeling
+    description: Systematically enumerate trust boundaries and attack vectors.
+    category: quality
+    recommended_roles: [qa_security]
+    enabled: true
+    prompt_fragment: "List the trust boundaries first, then one concrete attack per boundary."
+  - id: edge-case-analysis
+    name: Edge Case Analysis
+    description: Enumerate edge cases and boundary conditions.
+    category: quality
+    recommended_roles: [qa_security]
+    enabled: true
+    prompt_fragment: "State edge cases as concrete inputs/timings, not abstract categories."
+  - id: abuse-case-analysis
+    name: Abuse Case Analysis
+    description: Think like an attacker/abuser of the system, not just a normal user.
+    category: quality
+    recommended_roles: [qa_security]
+    enabled: true
+    prompt_fragment: "Describe how a motivated bad actor - not just an honest user - would use this feature."
+  - id: regression-strategy
+    name: Regression Strategy
+    description: Plan how correctness is verified over time as the system changes.
+    category: quality
+    recommended_roles: [qa_security]
+    enabled: true
+    prompt_fragment: "Say how you'd verify this still works after the next unrelated change."
+
+  # --- Devil's Advocate ---
+  - id: assumption-challenge
+    name: Assumption Challenge
+    description: Surface and challenge unstated assumptions.
+    category: critique
+    recommended_roles: [devils_advocate]
+    enabled: true
+    prompt_fragment: "Name the assumption nobody stated out loud, then challenge it directly."
+  - id: overengineering-detection
+    name: Overengineering Detection
+    description: Detect complexity added without justified need.
+    category: critique
+    recommended_roles: [devils_advocate]
+    enabled: true
+    prompt_fragment: "Ask what would break if the fanciest piece of this design were simply deleted."
+  - id: failure-mode-analysis
+    name: Failure Mode Analysis
+    description: Systematically ask "what happens when this fails".
+    category: critique
+    recommended_roles: [devils_advocate]
+    enabled: true
+    prompt_fragment: "For every proposed mechanism, state its most likely failure mode and who notices first."
+
+  # --- Moderator ---
+  - id: consensus-synthesis
+    name: Consensus Synthesis
+    description: Synthesize a debate into accepted/rejected/unresolved decisions with evidence.
+    category: governance
+    recommended_roles: [moderator]
+    enabled: true
+    prompt_fragment: "State WHY for every decision, with evidence from the transcript - never a vote count."
+  - id: evidence-weighing
+    name: Evidence Weighing
+    description: Weigh argument strength by evidence, not by vote count.
+    category: governance
+    recommended_roles: [moderator]
+    enabled: true
+    prompt_fragment: "A single well-evidenced argument can outweigh several weaker ones on the other side."
+  - id: dissent-recording
+    name: Dissent Recording
+    description: Explicitly record minority/dissenting positions rather than erasing them.
+    category: governance
+    recommended_roles: [moderator]
+    enabled: true
+    prompt_fragment: "If a role never withdrew an objection, record it as dissent even if the item was accepted."
+
+  # --- ChatGPT Observer (not a debate participant - see role catalog) ---
+  - id: meeting-summarization
+    name: Meeting Summarization
+    description: Read meeting state and produce a concise human-readable summary.
+    category: observer
+    recommended_roles: [chatgpt_observer]
+    enabled: true
+    prompt_fragment: null
+  - id: attention-flagging
+    name: Attention Flagging
+    description: Surface exactly what needs the human's attention right now.
+    category: observer
+    recommended_roles: [chatgpt_observer]
+    enabled: true
+    prompt_fragment: null

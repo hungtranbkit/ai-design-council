@@ -35,7 +35,7 @@ def created_meeting(client):
             "brief_text": BRIEF_TEXT,
             "brief_name": "test",
             "provider": "mock",
-            "role_skills": {"architect": ["architecture_review"]},
+            "role_skills": {"architect": ["architecture-review"]},
             "playback_enabled": False,
         },
     )
@@ -47,21 +47,34 @@ def test_roles_and_skills_config_are_data_driven(client):
     catalog = client.get("/api/roles").json()
     roles = catalog["roles"]
     ids = {r["id"] for r in roles}
-    # 6 debaters (Rounds 1-4) + the Moderator/ChatGPT Observer (Round 5) = 7.
-    assert ids == {"product_ba", "ux_designer", "architect", "business_critic", "qa_security", "devils_advocate", "moderator"}
+    # 6 debaters (Rounds 1-4) + Moderator (Round 5) + ChatGPT Observer (read-only, non-participant) = 8.
+    assert ids == {
+        "product_ba", "ux_designer", "architect", "business_critic", "qa_security", "devils_advocate",
+        "moderator", "chatgpt_observer",
+    }
     architect = next(r for r in roles if r["id"] == "architect")
-    assert "architecture_review" in architect["skills"]
+    assert "architecture-review" in architect["skills"]
     assert architect["role_type"] == "debater"
     assert architect["status"] == "active"
     assert architect["runtime_provider"] == catalog["default_provider"]
 
     moderator = next(r for r in roles if r["id"] == "moderator")
     assert moderator["role_type"] == "moderator"
-    assert "consensus_moderation" in moderator["skills"]
+    assert "consensus-synthesis" in moderator["skills"]
+
+    observer = next(r for r in roles if r["id"] == "chatgpt_observer")
+    assert observer["role_type"] == "observer"
+    assert observer["runtime_provider"] == "deterministic"  # not an LLM call in V0
+    assert "meeting-summarization" in observer["skills"]
 
     skills = client.get("/api/skills").json()["skills"]
     skill_ids = {s["id"] for s in skills}
-    assert {"product_discovery", "security_review", "devils_advocate_skill", "consensus_moderation"} <= skill_ids
+    assert {"requirement-discovery", "threat-model", "assumption-challenge", "consensus-synthesis"} <= skill_ids
+    # every skill carries the full spec-mandated shape
+    sample = next(s for s in skills if s["id"] == "architecture-review")
+    assert sample["category"] == "architecture"
+    assert "architect" in sample["recommended_roles"]
+    assert sample["enabled"] is True
 
 
 def test_providers_status_marks_mock_ready(client):
@@ -72,11 +85,11 @@ def test_providers_status_marks_mock_ready(client):
 
 def test_role_skills_override_roundtrip(client, tmp_path, monkeypatch):
     monkeypatch.setattr(role_overrides, "OVERRIDES_PATH", tmp_path / "overrides.json")
-    resp = client.patch("/api/roles/ux_designer/skills", json={"role_id": "ux_designer", "skill_ids": ["ux_flow", "product_discovery"]})
+    resp = client.patch("/api/roles/ux_designer/skills", json={"role_id": "ux_designer", "skill_ids": ["mobile-first", "accessibility"]})
     assert resp.status_code == 200
     roles = client.get("/api/roles").json()["roles"]
     ux = next(r for r in roles if r["id"] == "ux_designer")
-    assert set(ux["skills"]) == {"ux_flow", "product_discovery"}
+    assert set(ux["skills"]) == {"mobile-first", "accessibility"}
 
 
 def test_role_skills_override_rejects_unknown_skill(client, tmp_path, monkeypatch):

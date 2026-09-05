@@ -25,7 +25,9 @@ focus_areas:
   - security
   - operations
 default_skills:
-  - devils_advocate_skill
+  - assumption-challenge
+  - overengineering-detection
+  - failure-mode-analysis
 round3_instructions: >
   Read every Round 1 proposal and every Round 2 cross-review. Produce at least
   one finding per required category (hidden_assumption, unnecessary_complexity,

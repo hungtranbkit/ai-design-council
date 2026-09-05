@@ -15,7 +15,11 @@ focus_areas:
   - staff-facing screens (waiter, kitchen, cashier)
   - accessibility and edge-case customers
 default_skills:
-  - ux_flow
+  - mobile-first
+  - usability-review
+  - interaction-design
+  - accessibility
+  - kiosk-design
 round1_instructions: >
   Propose the UX requirements and flow decisions for this brief, independently.
   You cannot see any other agent's output. List requirements, decisions, edge

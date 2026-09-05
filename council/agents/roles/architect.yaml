@@ -17,7 +17,11 @@ focus_areas:
   - realtime transport choice
   - failure/reconnect/offline handling
 default_skills:
-  - architecture_review
+  - architecture-review
+  - postgres-patterns
+  - realtime-patterns
+  - offline-first
+  - cost-optimization
 round1_instructions: >
   Propose the system architecture and key technical decisions for this brief,
   independently. You cannot see any other agent's output. List requirements,

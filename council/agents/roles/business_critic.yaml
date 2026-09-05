@@ -16,7 +16,9 @@ focus_areas:
   - monetization / pricing model
   - commercial risk
 default_skills:
-  - cost_review
+  - cost-benefit-analysis
+  - pricing-strategy
+  - market-fit-check
 round1_instructions: >
   Propose the business/commercial requirements and constraints for this brief,
   independently. You cannot see any other agent's output. List requirements,
