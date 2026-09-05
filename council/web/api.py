@@ -97,6 +97,35 @@ def api_meeting_summary(run_id: str):
         raise HTTPException(404, f"no meeting '{run_id}'") from exc
 
 
+@router.get("/meetings/{run_id}/participants")
+def api_meeting_participants(run_id: str):
+    try:
+        return store.get_participants(store.DEFAULT_RUNS_DIR, run_id)
+    except store.MeetingNotFound as exc:
+        raise HTTPException(404, f"no meeting '{run_id}'") from exc
+
+
+@router.get("/meetings/{run_id}/events")
+def api_meeting_events(
+    run_id: str,
+    round: int | None = Query(None),
+    type: str | None = Query(None),
+    since: int | None = Query(None),
+):
+    try:
+        return store.get_events(store.DEFAULT_RUNS_DIR, run_id, round_num=round, event_type=type, since=since)
+    except store.MeetingNotFound as exc:
+        raise HTTPException(404, f"no meeting '{run_id}'") from exc
+
+
+@router.get("/meetings/{run_id}/metrics")
+def api_meeting_metrics(run_id: str):
+    try:
+        return store.get_metrics(store.DEFAULT_RUNS_DIR, run_id)
+    except store.MeetingNotFound as exc:
+        raise HTTPException(404, f"no meeting '{run_id}'") from exc
+
+
 @router.get("/meetings/{run_id}/artifacts")
 def api_meeting_artifacts(run_id: str):
     try:

@@ -75,3 +75,23 @@ def test_new_session_page_shows_moderator_and_model_field_and_no_ollama_chip(cli
     assert 'data-provider="mock"' in text
     assert 'data-provider="anthropic"' in text
     assert 'data-provider="ollama"' not in text  # scope decision: hidden from the primary picker this phase
+
+
+def test_skill_catalog_page_renders_with_categories(client):
+    resp = client.get("/skills")
+    assert resp.status_code == 200
+    text = resp.text
+    assert "Skill Catalog" in text
+    assert "requirement-discovery" in text
+    assert "Requirement Discovery" in text
+    assert "Governance" in text or "governance" in text.lower()
+
+
+def test_no_secrets_leak_through_settings_or_providers(client, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-super-secret-value-should-never-appear")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-super-secret-value-should-never-appear")
+    for path in ["/settings", "/sessions/new"]:
+        text = client.get(path).text
+        assert "super-secret-value" not in text
+    api_text = client.get("/api/providers").text
+    assert "super-secret-value" not in api_text

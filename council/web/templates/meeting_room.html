@@ -4,11 +4,18 @@
 <div class="page-header">
   <div>
     <h1>Meeting Room</h1>
-    <p class="subtitle">{{ run_id }} · provider: {{ meeting.meta.provider }}</p>
+    <p class="subtitle">{{ run_id }} · <span id="header-status">provider: {{ meeting.meta.provider }}</span></p>
   </div>
   <div>
     <a class="btn" href="/meetings/{{ run_id }}/decisions">Human Decision Center →</a>
   </div>
+</div>
+
+<div class="meta-strip">
+  <span>Provider: <b id="meta-provider">{{ meeting.meta.provider }}</b></span>
+  <span>Model: <b id="meta-model">{{ meeting.meta.model or 'default' }}</b></span>
+  <span>Status: <b id="meta-status">-</b></span>
+  <span>Elapsed: <b id="meta-elapsed">-</b></span>
 </div>
 
 <div class="progress-header" id="progress-header">
@@ -26,6 +33,10 @@
 </div>
 
 <div class="room-grid">
+  <div class="participant-panel" id="participant-panel">
+    <p class="hint">Loading participants…</p>
+  </div>
+
   <div>
     <div class="table-room" id="table-room">
       <div class="table-surface"><div class="table-caption">QR Ordering Restaurant<br>council session</div></div>
@@ -37,7 +48,7 @@
       </div>
       {% endfor %}
     </div>
-    <p class="hint">Click a seat to open that role's Round 1 / Round 4 artifact.</p>
+    <p class="hint">Click a seat (or a name in the participant list) to open that role's Round 1 / Round 4 artifact.</p>
   </div>
 
   <div class="transcript-panel">
@@ -58,12 +69,17 @@
 </div>
 
 <div class="card observer-panel">
-  <h3>🔎 ChatGPT Observer / AI Product Director</h3>
+  <h3>🔎 ChatGPT Observer</h3>
   <p class="observer-note">Read-only view of what an external ChatGPT reading <code>/api/meetings/{{ run_id }}/summary</code> would see right now. It cannot decide anything - only the user can.</p>
   <div id="observer-body">
     <p class="hint">Loading…</p>
   </div>
 </div>
+
+<div class="metrics-strip" id="metrics-strip">
+  <p class="hint">Loading metrics…</p>
+</div>
+<p class="hint" style="margin-top:8px;"><a href="/meetings/{{ run_id }}#" onclick="fetchAllArtifacts('{{ run_id }}'); return false;">View all raw artifacts</a></p>
 
 <div id="artifact-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(10,14,25,0.45); z-index:50;">
   <div style="max-width:640px; margin:60px auto; background:var(--bg-panel); border-radius:var(--radius); padding:18px 20px; max-height:75vh; overflow:auto; box-shadow:var(--shadow);">

@@ -230,6 +230,15 @@ def get_meeting(runs_dir: Path, run_id: str) -> dict:
     }
 
 
+def _elapsed_seconds(run_dir: Path) -> float | None:
+    state = _read_json(run_dir / "playback_state.json")
+    if state is None:
+        return None
+    started_at = datetime.fromisoformat(state["started_at"])
+    now = datetime.now(started_at.tzinfo or timezone.utc)
+    return round((now - started_at).total_seconds(), 1)
+
+
 def get_status(runs_dir: Path, run_id: str) -> dict:
     run_dir = _run_dir(runs_dir, run_id)
     if not _is_council_meeting(run_dir):
@@ -239,6 +248,7 @@ def get_status(runs_dir: Path, run_id: str) -> dict:
     revealed, complete = _revealed_count(run_dir, len(events))
     visible = events[:revealed]
     current = visible[-1] if visible else None
+    meta = _read_json(run_dir / "meta.json") or {}
 
     mind_changes = sum(1 for e in visible if e["type"] == "mind_change")
     decisions = [e for e in visible if e["type"] == "decision"]
@@ -249,6 +259,10 @@ def get_status(runs_dir: Path, run_id: str) -> dict:
     return {
         "run_id": run_id,
         "is_meeting": True,
+        "status": "completed" if complete else "running",
+        "provider": meta.get("provider"),
+        "model": meta.get("model"),
+        "elapsed_seconds": _elapsed_seconds(run_dir),
         "total_events": len(events),
         "revealed_events": revealed,
         "is_complete": complete,
@@ -272,6 +286,131 @@ def get_transcript(runs_dir: Path, run_id: str, filter_name: str = "all", since:
         visible = [e for e in visible if e["order"] > since]
     filtered = meeting_events.events_matching(visible, filter_name)
     return {"run_id": run_id, "filter": filter_name, "is_complete": complete, "events": filtered}
+
+
+def get_events(
+    runs_dir: Path, run_id: str, *, round_num: int | None = None, event_type: str | None = None, since: int | None = None
+) -> dict:
+    """Canonical structured event feed (spec section 9) - one flat record per
+    event with a stable schema external clients can rely on, distinct from
+    /transcript's UI-shaped cards (speaker_name, title, details bullets).
+    Always respects the same playback reveal as /status and /transcript."""
+    run_dir = _run_dir(runs_dir, run_id)
+    events = _events_for(run_dir)
+    revealed, complete = _revealed_count(run_dir, len(events))
+    visible = events[:revealed]
+    if round_num is not None:
+        visible = [e for e in visible if e["round"] == round_num]
+    if event_type is not None:
+        visible = [e for e in visible if e["type"] == event_type]
+    if since is not None:
+        visible = [e for e in visible if e["order"] > since]
+
+    structured = [
+        {
+            "event_id": f"{run_id}:{e['order']}",
+            "meeting_id": run_id,
+            "order": e["order"],
+            "round": e["round"],
+            "round_name": e["round_label"],
+            "role": e["speaker_role"],
+            "type": e["type"],
+            "target_role": e["target_role"],
+            "severity": e.get("meta", {}).get("severity"),
+            "summary": e["title"],
+            "content": e["text"],
+            "details": e["details"],
+            "timestamp": e.get("timestamp"),
+        }
+        for e in visible
+    ]
+    return {"run_id": run_id, "meeting_id": run_id, "is_complete": complete, "events": structured}
+
+
+def get_metrics(runs_dir: Path, run_id: str) -> dict:
+    run_dir = _run_dir(runs_dir, run_id)
+    meta = _read_json(run_dir / "meta.json") or {}
+    metrics = _read_json(run_dir / "metrics.json") or {}
+    is_mock = meta.get("provider") == "mock"
+    return {
+        "run_id": run_id,
+        "provider": meta.get("provider"),
+        "model": meta.get("model"),
+        "is_mock_provider": is_mock,
+        "cost_is_proxy": is_mock,  # mock has no real API cost - tokens_in/out/cost are a deterministic char-count proxy
+        **metrics,
+    }
+
+
+def get_participants(runs_dir: Path, run_id: str) -> dict:
+    """Per-role computed state for the Meeting Room's participant list - all
+    derived server-side from revealed events, per spec section 9 ("backend
+    expose structured meeting events", not text the frontend has to parse)."""
+    from council.web.role_catalog import build_role_catalog
+
+    run_dir = _run_dir(runs_dir, run_id)
+    if not _is_council_meeting(run_dir):
+        return {"run_id": run_id, "is_meeting": False, "participants": []}
+
+    events = _events_for(run_dir)
+    revealed, complete = _revealed_count(run_dir, len(events))
+    visible = events[:revealed]
+    current = visible[-1] if visible else None
+    current_role = current["speaker_role"] if current else None
+
+    next_role = None
+    if not complete:
+        for e in events[revealed:]:
+            if e["speaker_role"] != current_role:
+                next_role = e["speaker_role"]
+                break
+
+    spoken_roles = {e["speaker_role"] for e in visible}
+    mind_change_roles = {e["speaker_role"] for e in visible if e["type"] == "mind_change"}
+    disagreement_roles: set[str] = set()
+    critical_roles: set[str] = set()
+    last_action: dict[str, dict] = {}
+    for e in visible:
+        if e["type"] in ("disagreement", "critique"):
+            disagreement_roles.add(e["speaker_role"])
+            if e.get("target_role"):
+                disagreement_roles.add(e["target_role"])
+        if e.get("meta", {}).get("severity") == "high":
+            critical_roles.add(e["speaker_role"])
+            if e.get("target_role"):
+                critical_roles.add(e["target_role"])
+        last_action[e["speaker_role"]] = {"title": e["title"], "round": e["round"], "type": e["type"]}
+
+    catalog = build_role_catalog()
+    participants = []
+    for role in catalog["roles"]:
+        if role["role_type"] == "observer":
+            continue  # not a meeting participant - see /api/meetings/{id}/summary instead
+        role_id = role["id"]
+        if role_id == current_role and not complete:
+            state = "speaking"
+        elif role_id == next_role:
+            state = "thinking"
+        elif role_id in spoken_roles:
+            state = "done"
+        else:
+            state = "waiting"
+        participants.append(
+            {
+                "id": role_id,
+                "display_name": role["display_name"],
+                "role_type": role["role_type"],
+                "state": state,
+                "provider": role["runtime_provider"],
+                "model": role["runtime_model"],
+                "skills": role["skills"],
+                "has_mind_change": role_id in mind_change_roles,
+                "has_active_disagreement": role_id in disagreement_roles,
+                "has_critical_risk": role_id in critical_roles,
+                "last_action": last_action.get(role_id),
+            }
+        )
+    return {"run_id": run_id, "is_meeting": True, "is_complete": complete, "participants": participants}
 
 
 def get_summary(runs_dir: Path, run_id: str) -> dict:

@@ -26,6 +26,28 @@ function closeArtifactModal() {
   if (el) el.style.display = "none";
 }
 
+async function fetchAllArtifacts(runId) {
+  try {
+    const manifest = await fetchJSON(`/api/meetings/${runId}/artifacts`);
+    const list = manifest.files.map((f) =>
+      `<li><a href="#" onclick="loadArtifactFile('${runId}','${f.path}'); return false;">${escapeHtml(f.path)}</a> <span class="hint">(${f.size_bytes}b)</span></li>`
+    ).join("");
+    openArtifactModal("All artifacts", "");
+    document.getElementById("artifact-modal-content").innerHTML = `<ul class="observer-list">${list}</ul>`;
+  } catch (err) {
+    openArtifactModal("All artifacts", "Could not load manifest: " + err.message);
+  }
+}
+
+async function loadArtifactFile(runId, path) {
+  try {
+    const file = await fetchJSON(`/api/meetings/${runId}/artifacts/file?path=${encodeURIComponent(path)}`);
+    openArtifactModal(path, file.content);
+  } catch (err) {
+    openArtifactModal(path, "Could not load: " + err.message);
+  }
+}
+
 /* ==================================================================
    New Council Session page
    ================================================================== */
@@ -169,6 +191,15 @@ function initMeetingRoom(runId) {
     document.getElementById("stat-rejected").textContent = status.rejected_count;
     document.getElementById("stat-unresolved").textContent = status.unresolved_count;
 
+    const metaStatus = document.getElementById("meta-status");
+    if (metaStatus) metaStatus.textContent = status.status || (status.is_complete ? "completed" : "running");
+    const metaElapsed = document.getElementById("meta-elapsed");
+    if (metaElapsed) metaElapsed.textContent = status.elapsed_seconds != null ? `${status.elapsed_seconds}s` : "-";
+    const metaProvider = document.getElementById("meta-provider");
+    if (metaProvider && status.provider) metaProvider.textContent = status.provider;
+    const metaModel = document.getElementById("meta-model");
+    if (metaModel) metaModel.textContent = status.model || "default";
+
     document.querySelectorAll(".seat").forEach((seat) => {
       seat.classList.remove("speaking", "spoke", "critiquing", "waiting");
       const statusEl = seat.querySelector(".seat-status");
@@ -215,11 +246,62 @@ function initMeetingRoom(runId) {
     `;
   }
 
+  const STATE_LABEL = { speaking: "Speaking…", thinking: "Thinking…", done: "Done", waiting: "Waiting" };
+
+  async function refreshParticipants() {
+    const p = await fetchJSON(`/api/meetings/${runId}/participants`);
+    const panel = document.getElementById("participant-panel");
+    if (!p.participants || !p.participants.length) {
+      panel.innerHTML = '<p class="hint">No participants.</p>';
+      return;
+    }
+    panel.innerHTML = p.participants.map((role) => {
+      const flags = [];
+      if (role.has_mind_change) flags.push('<span title="Changed position on at least one topic">💡</span>');
+      if (role.has_active_disagreement) flags.push('<span title="Involved in a disagreement">⚔️</span>');
+      if (role.has_critical_risk) flags.push('<span title="Flagged a critical-severity issue">🔴</span>');
+      return `
+        <div class="participant-row state-${role.state}" data-role="${role.id}">
+          <div class="p-avatar">${escapeHtml(role.display_name[0])}</div>
+          <div>
+            <div class="p-name">${escapeHtml(role.display_name)}</div>
+            <div class="p-state">${STATE_LABEL[role.state] || role.state}${role.last_action ? " · " + escapeHtml(role.last_action.title) : ""}</div>
+          </div>
+          <div class="p-flags">${flags.join("")}</div>
+        </div>`;
+    }).join("");
+    panel.querySelectorAll(".participant-row").forEach((row) => {
+      row.addEventListener("click", () => {
+        const seat = document.querySelector(`.seat[data-role="${row.dataset.role}"]`);
+        if (seat) seat.click();
+      });
+    });
+  }
+
+  async function refreshMetrics() {
+    const m = await fetchJSON(`/api/meetings/${runId}/metrics`);
+    const strip = document.getElementById("metrics-strip");
+    const rows = [
+      ["requirements_count", "Requirements"], ["edge_cases_count", "Edge Cases"], ["risks_count", "Risks"],
+      ["mind_changes_count", "Mind Changes"], ["unresolved_count", "Unresolved"],
+      ["tokens_in", "Tokens In"], ["tokens_out", "Tokens Out"], ["duration_seconds", "Duration (s)"],
+    ];
+    const cells = rows.map(([key, label]) => `
+      <div class="metric"><div class="num">${m[key] != null ? m[key] : "-"}</div><div class="label">${label}</div></div>
+    `).join("");
+    const costLabel = m.cost_is_proxy
+      ? `<div class="metric"><div class="num">n/a</div><div class="label">Cost (mock proxy)</div></div>`
+      : `<div class="metric"><div class="num">$${(m.estimated_cost_usd ?? 0).toFixed(4)}</div><div class="label">Est. Cost</div></div>`;
+    strip.innerHTML = cells + costLabel;
+  }
+
   async function tick() {
     try {
       const status = await refreshStatus();
       await refreshTranscript();
       await refreshObserver();
+      await refreshParticipants();
+      await refreshMetrics();
       if (status && !status.is_complete) {
         setTimeout(tick, 1500);
       }

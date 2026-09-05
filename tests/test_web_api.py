@@ -298,3 +298,50 @@ def test_model_override_is_ignored_for_mock_but_forwarded_to_real_providers(clie
             playback_enabled=False,
         )
     assert captured["anthropic"] == {"model": "claude-sonnet-5"}
+
+
+def test_participants_endpoint_reflects_real_state(client, created_meeting):
+    participants = client.get(f"/api/meetings/{created_meeting}/participants").json()["participants"]
+    ids = {p["id"] for p in participants}
+    # 6 debaters + moderator = 7; the ChatGPT Observer is not a meeting participant.
+    assert ids == {"product_ba", "ux_designer", "architect", "business_critic", "qa_security", "devils_advocate", "moderator"}
+    # meeting was created with playback disabled -> already complete -> everyone "done"
+    assert all(p["state"] == "done" for p in participants)
+    architect = next(p for p in participants if p["id"] == "architect")
+    assert architect["has_mind_change"] is True  # architect changes position on realtime_transport + offline_lite
+    assert architect["last_action"] is not None
+    product_ba = next(p for p in participants if p["id"] == "product_ba")
+    assert product_ba["has_active_disagreement"] is True  # qa_security disagrees with product_ba's static-QR stance
+
+
+def test_events_endpoint_matches_structured_schema(client, created_meeting):
+    events = client.get(f"/api/meetings/{created_meeting}/events").json()["events"]
+    assert len(events) > 40
+    sample = events[0]
+    for key in ["event_id", "meeting_id", "round", "role", "type", "target_role", "severity", "summary", "content", "timestamp"]:
+        assert key in sample
+    assert sample["meeting_id"] == created_meeting
+    assert sample["event_id"].startswith(created_meeting)
+
+    # filter by round and by type
+    round1_only = client.get(f"/api/meetings/{created_meeting}/events", params={"round": 1}).json()["events"]
+    assert len(round1_only) == 6
+    assert all(e["round"] == 1 for e in round1_only)
+    mind_changes_only = client.get(f"/api/meetings/{created_meeting}/events", params={"type": "mind_change"}).json()["events"]
+    assert len(mind_changes_only) >= 3
+    assert all(e["type"] == "mind_change" for e in mind_changes_only)
+
+
+def test_metrics_endpoint_flags_mock_as_proxy_cost(client, created_meeting):
+    metrics = client.get(f"/api/meetings/{created_meeting}/metrics").json()
+    assert metrics["is_mock_provider"] is True
+    assert metrics["cost_is_proxy"] is True
+    assert metrics["requirements_count"] > 0
+    assert metrics["mind_changes_count"] >= 3
+
+
+def test_status_includes_provider_model_and_elapsed(client, created_meeting):
+    status = client.get(f"/api/meetings/{created_meeting}/status").json()
+    assert status["provider"] == "mock"
+    assert status["status"] == "completed"
+    assert "elapsed_seconds" in status

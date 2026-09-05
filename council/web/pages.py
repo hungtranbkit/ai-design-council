@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from council.agents.loader import load_council_roles
-from council.agents.skills import load_skills
+from council.agents.skills import load_skills, skills_by_category
 from council.web import meeting_store as store
 from council.web.provider_status import provider_statuses
 from council.web.role_catalog import build_role_catalog
@@ -112,6 +112,15 @@ def page_roles(request: Request):
             "runtime_note": catalog["runtime_note"],
             "all_skills": load_skills(),
         },
+    )
+
+
+@router.get("/skills", response_class=HTMLResponse)
+def page_skills(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "skills.html",
+        {"active_nav": "skills", "skills_by_category": skills_by_category()},
     )
 
 
