@@ -65,6 +65,16 @@ def api_create_meeting(body: NewMeetingRequest):
     return {"run_id": run_id}
 
 
+@router.post("/meetings/demo", status_code=201)
+def api_run_demo_meeting():
+    """One-click demo: examples/qr_restaurant.md + mock provider + all 6
+    default roles, gradual playback - same create_meeting() path as the New
+    Session form, just with fixed, always-available defaults (never fails
+    on a missing provider key, since it's hardcoded to mock)."""
+    run_id = store.create_demo_meeting(store.DEFAULT_RUNS_DIR)
+    return {"run_id": run_id}
+
+
 @router.get("/meetings/{run_id}")
 def api_get_meeting(run_id: str):
     try:

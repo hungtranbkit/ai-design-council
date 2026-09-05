@@ -6,12 +6,16 @@
     <h1>Meetings</h1>
     <p class="subtitle">Recent council sessions and single-agent runs, read straight from <code>runs/</code>.</p>
   </div>
-  <a class="btn btn-primary" href="/sessions/new">+ New Council Session</a>
+  <div style="display:flex; gap:10px;">
+    <button class="btn" id="run-demo-btn" onclick="runDemoMeeting(this)">▶ Run Demo Meeting</button>
+    <a class="btn btn-primary" href="/sessions/new">+ New Council Session</a>
+  </div>
 </div>
+<p class="hint" id="run-demo-error" style="color:var(--danger); margin-top:-8px; margin-bottom:16px;"></p>
 
 {% if not meetings %}
 <div class="card empty-state">
-  No runs yet. Start your first council session, or run <code>python -m council run --brief examples/qr_restaurant.md --provider mock</code> from the CLI.
+  No runs yet. Click <strong>Run Demo Meeting</strong> above for an instant mock council session on the QR-restaurant brief, start your own via <strong>New Council Session</strong>, or run <code>python -m council run --brief examples/qr_restaurant.md --provider mock</code> from the CLI.
 </div>
 {% else %}
 <div class="meeting-list">

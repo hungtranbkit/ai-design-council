@@ -345,3 +345,24 @@ def test_status_includes_provider_model_and_elapsed(client, created_meeting):
     assert status["provider"] == "mock"
     assert status["status"] == "completed"
     assert "elapsed_seconds" in status
+
+
+def test_run_demo_meeting_endpoint_creates_a_real_meeting(client):
+    resp = client.post("/api/meetings/demo")
+    assert resp.status_code == 201
+    run_id = resp.json()["run_id"]
+
+    status = client.get(f"/api/meetings/{run_id}/status").json()
+    assert status["is_meeting"] is True
+    assert status["provider"] == "mock"
+    assert status["total_events"] > 40
+
+    meeting = client.get(f"/api/meetings/{run_id}").json()
+    assert meeting["meta"]["provider"] == "mock"
+    assert "QR Ordering" in meeting["brief"]
+
+
+def test_run_demo_meeting_never_overwrites_a_previous_demo_run(client):
+    run_id_1 = client.post("/api/meetings/demo").json()["run_id"]
+    run_id_2 = client.post("/api/meetings/demo").json()["run_id"]
+    assert run_id_1 != run_id_2

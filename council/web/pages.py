@@ -22,7 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 router = APIRouter()
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-EXAMPLE_BRIEF_PATH = REPO_ROOT / "examples" / "qr_restaurant.md"
+EXAMPLE_BRIEF_PATH = store.EXAMPLE_BRIEF_PATH
 
 
 def _version() -> str:

@@ -95,3 +95,10 @@ def test_no_secrets_leak_through_settings_or_providers(client, monkeypatch):
         assert "super-secret-value" not in text
     api_text = client.get("/api/providers").text
     assert "super-secret-value" not in api_text
+
+
+def test_dashboard_shows_run_demo_meeting_button(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "Run Demo Meeting" in resp.text
+    assert 'onclick="runDemoMeeting(this)"' in resp.text

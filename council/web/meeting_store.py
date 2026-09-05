@@ -29,6 +29,8 @@ from council.providers import get_provider
 from council.web import meeting_events
 
 DEFAULT_RUNS_DIR = Path("runs")
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+EXAMPLE_BRIEF_PATH = REPO_ROOT / "examples" / "qr_restaurant.md"
 
 
 class MeetingNotFound(Exception):
@@ -42,6 +44,23 @@ class InvalidArtifactPath(Exception):
 # --------------------------------------------------------------------------
 # creation
 # --------------------------------------------------------------------------
+
+
+def create_demo_meeting(runs_dir: Path) -> str:
+    """One-click 'Run Demo Meeting': the example QR-restaurant brief, mock
+    provider, all 6 default roles, gradual playback so it's watchable live -
+    exactly the same create_meeting() path as a hand-built New Session
+    request, just with fixed demo defaults. No fake transcript: this runs the
+    real orchestrator like any other meeting."""
+    brief_text = EXAMPLE_BRIEF_PATH.read_text(encoding="utf-8")
+    return create_meeting(
+        runs_dir=runs_dir,
+        brief_text=brief_text,
+        brief_name="demo",
+        provider_name="mock",
+        role_skills={},
+        playback_enabled=True,
+    )
 
 
 def create_meeting(

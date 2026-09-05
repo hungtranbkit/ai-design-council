@@ -39,6 +39,24 @@ async function fetchAllArtifacts(runId) {
   }
 }
 
+/* ---------------- Dashboard: Run Demo Meeting ---------------- */
+
+async function runDemoMeeting(btn) {
+  const errEl = document.getElementById("run-demo-error");
+  errEl.textContent = "";
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = "Starting demo…";
+  try {
+    const result = await fetchJSON("/api/meetings/demo", { method: "POST" });
+    window.location.href = `/meetings/${result.run_id}`;
+  } catch (err) {
+    errEl.textContent = "Failed to start demo meeting: " + err.message;
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
 async function loadArtifactFile(runId, path) {
   try {
     const file = await fetchJSON(`/api/meetings/${runId}/artifacts/file?path=${encodeURIComponent(path)}`);
