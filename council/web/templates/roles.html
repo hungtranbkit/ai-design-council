@@ -3,10 +3,12 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h1>Roles &amp; Skills</h1>
-    <p class="subtitle">Skill assignments are data-driven and editable here. The 6-role set itself is fixed in V0 (see README).</p>
+    <h1>Role Catalog &amp; Skills</h1>
+    <p class="subtitle">7 roles: 6 debaters (Rounds 1-4) + the Moderator/ChatGPT Observer (Round 5). Skill assignments are data-driven and editable here; the role set itself is fixed in V0 (see README).</p>
   </div>
 </div>
+
+<p class="hint" style="margin-bottom:16px;">{{ runtime_note }}</p>
 
 <div class="roles-grid">
   {% for role in roles %}
@@ -17,6 +19,13 @@
         <div class="role-name">{{ role.display_name }}</div>
         <div class="role-desc">{{ role.description }}</div>
       </div>
+    </div>
+    <div class="badge-row" style="margin-top:10px;">
+      <span class="badge {{ 'badge-purple' if role.role_type == 'moderator' else 'badge-info' }}">{{ 'Moderator · Round 5' if role.role_type == 'moderator' else 'Debater · Rounds 1-4' }}</span>
+      <span class="badge badge-success">{{ role.status | capitalize }}</span>
+      <span class="badge {{ 'badge-success' if role.runtime_provider_status == 'ready' else 'badge-muted' }}" title="Runtime provider for this session (shared across all roles in V0)">
+        Runtime: {{ role.runtime_provider }}{{ ' (' + role.runtime_model + ')' if role.runtime_model else '' }}
+      </span>
     </div>
     {% if role.focus_areas %}
     <p class="hint" style="margin-top:8px;">Focus: {{ role.focus_areas | join(', ') }}</p>

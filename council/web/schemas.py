@@ -11,6 +11,7 @@ class NewMeetingRequest(BaseModel):
     brief_text: str = Field(min_length=1)
     brief_name: str = "session"
     provider: str = "mock"
+    model: str | None = None  # overrides the provider's default model; ignored for provider="mock"
     role_skills: dict[str, list[str]] = Field(default_factory=dict)
     playback_enabled: bool = True
 

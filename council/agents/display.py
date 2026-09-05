@@ -9,7 +9,7 @@ DISPLAY_NAMES: dict[str, str] = {
     "business_critic": "Business Critic",
     "qa_security": "QA + Security",
     "devils_advocate": "Devil's Advocate",
-    "moderator": "Moderator",
+    "moderator": "Moderator / ChatGPT Observer",
     "solo_designer": "Solo Designer",
 }
 

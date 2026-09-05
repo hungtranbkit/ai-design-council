@@ -60,11 +60,12 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def save_meta(run_dir: Path, *, run_id: str, mode: str, provider: str, brief_path: str) -> None:
+def save_meta(run_dir: Path, *, run_id: str, mode: str, provider: str, brief_path: str, model: str | None = None) -> None:
     meta = {
         "run_id": run_dir.name,
         "mode": mode,
         "provider": provider,
+        "model": model,
         "brief_path": brief_path,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }

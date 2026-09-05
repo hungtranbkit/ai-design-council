@@ -168,11 +168,17 @@ python -m council serve --port 8080     # custom port
 python -m council serve --reload        # dev mode
 ```
 
-Pages: **Meetings** (dashboard) → **New Council Session** (brief, provider,
-roles/skills, playback toggle) → **Meeting Room** (round table + live
-transcript + ChatGPT Observer) → **Human Decision Center** (Approve / Reject
-/ Defer / Pending per topic, with your notes) → **Roles & Skills** (edit
-which skills are attached to each role) → **Reports** → **Settings**.
+Pages: **Meetings** (dashboard) → **New Council Session** (brief,
+provider/model, roles + skills review, playback toggle) → **Meeting Room**
+(round table + live transcript + ChatGPT Observer) → **Human Decision
+Center** (Approve / Reject / Defer / Pending per topic, with your notes) →
+**Role Catalog & Skills** (7 roles - 6 debaters + the Moderator/ChatGPT
+Observer - each with description, runtime/provider, status, and editable
+skills) → **Reports** → **Settings**.
+
+This phase supports **mock + Anthropic + OpenAI**; Ollama's code/API entry
+still exists (untouched) but is intentionally left out of the New Session
+provider picker for now - a scope decision, not a regression.
 
 Starting a session runs the *entire* 5-round pipeline immediately (the mock
 provider is instant), then reveals it gradually - a random 0.5-1.5s delay per
@@ -188,7 +194,7 @@ and does not slow it down.
 GET  /api/meetings                              list of runs
 GET  /api/meetings/{run_id}                      meta + metrics + consensus
 GET  /api/meetings/{run_id}/status               current round/speaker/progress
-GET  /api/meetings/{run_id}/transcript?filter=    all | arguments | risks | mind_changes | decisions
+GET  /api/meetings/{run_id}/transcript?filter=    all | proposal | agree | disagree | risk | mind_change | decision | unresolved
 GET  /api/meetings/{run_id}/summary               ChatGPT-oriented payload (see below)
 GET  /api/meetings/{run_id}/artifacts             file manifest
 GET  /api/meetings/{run_id}/artifacts/file?path=  raw content of one artifact (path-traversal guarded)
@@ -207,15 +213,24 @@ revealed. Every payload carries `human_decision_required: true` and a note
 that the user, not the council or ChatGPT, makes the final call - the web UI
 repeats this in the Meeting Room and the Human Decision Center.
 
-**Known V0 limitation:** the 6 council roles are fixed (the pipeline and
+**Known V0 limitation:** the 6 debating roles are fixed (the pipeline and
 MockProvider script are written for exactly these 6 ids) - the New Session
 screen's role checkboxes are therefore locked on. Skill tags *are* fully
 editable (data-driven from `council/agents/skills.yaml` + a small
-`council/agents/role_skill_overrides.json`, edited via the Roles & Skills
-page or `PATCH /api/roles/{id}/skills`) but are informational/display
-metadata in V0 - MockProvider's deterministic script doesn't read them back.
-Wiring skill selection into a real LLM's prompt is a natural V1 addition
-(see "Next steps" below).
+`council/agents/role_skill_overrides.json` - deliberately separate from
+runtime/provider config, which lives in `council/web/provider_status.py` and
+env vars - edited via the Role Catalog page or `PATCH /api/roles/{id}/skills`)
+but are informational/display metadata in V0 - MockProvider's deterministic
+script doesn't read them back. The New Session screen also accepts an
+optional model override (forwarded to a real provider's constructor; ignored
+for `mock`, which takes no model). Wiring skill selection into a real LLM's
+prompt is a natural V1 addition (see "Next steps" below).
+
+The Role Catalog's "runtime/provider" badge is the same for every role: V0
+runs the whole council on one shared provider per meeting (not per-role) -
+the badge just shows which one (`COUNCIL_DEFAULT_PROVIDER` env var, default
+`mock`) and its readiness, pulled from `/api/providers` - a role's "status"
+(always "active" in V0) is a separate concept from provider readiness.
 
 ### Publishing it
 

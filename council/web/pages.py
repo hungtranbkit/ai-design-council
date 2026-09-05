@@ -10,11 +10,11 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from council.agents import role_overrides
 from council.agents.loader import load_council_roles
 from council.agents.skills import load_skills
 from council.web import meeting_store as store
 from council.web.provider_status import provider_statuses
+from council.web.role_catalog import build_role_catalog
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -42,27 +42,23 @@ def page_dashboard(request: Request):
 
 @router.get("/sessions/new", response_class=HTMLResponse)
 def page_new_session(request: Request):
-    roles = []
-    for role in load_council_roles():
-        roles.append(
-            {
-                "id": role.id,
-                "display_name": role.display_name,
-                "description": role.description,
-                "skills": role_overrides.effective_skills(role.id, role.default_skills),
-            }
-        )
+    catalog = build_role_catalog()
     example_brief = ""
     if EXAMPLE_BRIEF_PATH.exists():
         example_brief = EXAMPLE_BRIEF_PATH.read_text(encoding="utf-8")
+    # Ollama is intentionally left out of the primary picker for now (scope
+    # decision: mock + Anthropic + OpenAI only this phase) - the code and API
+    # entry aren't removed, just not surfaced as a pickable chip here.
+    providers = [p for p in provider_statuses() if p["name"] != "ollama"]
     return templates.TemplateResponse(
         request,
         "new_session.html",
         {
             "active_nav": "meetings",
-            "roles": roles,
+            "debater_roles": [r for r in catalog["roles"] if r["role_type"] == "debater"],
+            "moderator_role": next(r for r in catalog["roles"] if r["role_type"] == "moderator"),
             "all_skills": load_skills(),
-            "providers": provider_statuses(),
+            "providers": providers,
             "example_brief": example_brief,
         },
     )
@@ -106,19 +102,16 @@ def page_decisions(request: Request, run_id: str):
 
 @router.get("/roles", response_class=HTMLResponse)
 def page_roles(request: Request):
-    roles = []
-    for role in load_council_roles():
-        roles.append(
-            {
-                "id": role.id,
-                "display_name": role.display_name,
-                "description": role.description,
-                "focus_areas": role.focus_areas,
-                "skills": role_overrides.effective_skills(role.id, role.default_skills),
-            }
-        )
+    catalog = build_role_catalog()
     return templates.TemplateResponse(
-        request, "roles.html", {"active_nav": "roles", "roles": roles, "all_skills": load_skills()}
+        request,
+        "roles.html",
+        {
+            "active_nav": "roles",
+            "roles": catalog["roles"],
+            "runtime_note": catalog["runtime_note"],
+            "all_skills": load_skills(),
+        },
     )
 
 

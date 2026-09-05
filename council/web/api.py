@@ -8,11 +8,11 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from council.agents import role_overrides
-from council.agents.loader import load_council_roles
 from council.agents.skills import load_skills
 from council.providers.base import ProviderError
 from council.web import meeting_store as store
 from council.web.provider_status import provider_statuses
+from council.web.role_catalog import build_role_catalog
 from council.web.schemas import DecisionsRequest, NewMeetingRequest, RoleSkillsUpdate
 
 router = APIRouter(prefix="/api")
@@ -20,18 +20,7 @@ router = APIRouter(prefix="/api")
 
 @router.get("/roles")
 def api_roles():
-    roles = []
-    for role in load_council_roles():
-        roles.append(
-            {
-                "id": role.id,
-                "display_name": role.display_name,
-                "description": role.description,
-                "focus_areas": role.focus_areas,
-                "skills": role_overrides.effective_skills(role.id, role.default_skills),
-            }
-        )
-    return {"roles": roles}
+    return build_role_catalog()
 
 
 @router.get("/skills")
@@ -67,6 +56,7 @@ def api_create_meeting(body: NewMeetingRequest):
             brief_text=body.brief_text,
             brief_name=body.brief_name,
             provider_name=body.provider,
+            model=body.model,
             role_skills=body.role_skills,
             playback_enabled=body.playback_enabled,
         )

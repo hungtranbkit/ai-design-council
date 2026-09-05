@@ -51,12 +51,23 @@ def create_meeting(
     brief_name: str,
     provider_name: str,
     role_skills: dict[str, list[str]] | None,
+    model: str | None = None,
     playback_enabled: bool = True,
 ) -> str:
-    provider = get_provider(provider_name)  # raises ProviderError if misconfigured
+    # MockProvider() takes no constructor args - only forward an explicit
+    # model override to a real provider.
+    provider_kwargs = {"model": model} if model and provider_name != "mock" else {}
+    provider = get_provider(provider_name, **provider_kwargs)  # raises ProviderError if misconfigured
 
     run_dir = artifacts.make_run_dir(runs_dir, brief_name, "council")
-    artifacts.save_meta(run_dir, run_id=run_dir.name, mode="council", provider=provider.name, brief_path="(web session)")
+    artifacts.save_meta(
+        run_dir,
+        run_id=run_dir.name,
+        mode="council",
+        provider=provider.name,
+        brief_path="(web session)",
+        model=getattr(provider, "model", None),
+    )
     artifacts.save_brief(run_dir, brief_text)
 
     orchestrator = CouncilOrchestrator(provider=provider)

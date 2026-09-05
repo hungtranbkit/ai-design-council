@@ -4,7 +4,7 @@
 <div class="page-header">
   <div>
     <h1>New Council Session</h1>
-    <p class="subtitle">Write a brief, pick a provider, review the roles, then start the meeting.</p>
+    <p class="subtitle">Write a brief, pick a provider/model, review the roles, then start the meeting.</p>
   </div>
 </div>
 
@@ -18,20 +18,25 @@
     <div class="provider-grid" id="provider-grid">
       {% for p in providers %}
       <div class="provider-chip {{ 'selected' if p.name == 'mock' else '' }} {{ 'disabled' if p.status != 'ready' else '' }}"
-           data-provider="{{ p.name }}" data-ready="{{ 'true' if p.status == 'ready' else 'false' }}" title="{{ p.reason }}">
+           data-provider="{{ p.name }}" data-ready="{{ 'true' if p.status == 'ready' else 'false' }}"
+           data-default-model="{{ p.default_model or '' }}" title="{{ p.reason }}">
         {{ p.name }} <span class="badge {{ 'badge-success' if p.status == 'ready' else 'badge-muted' }}">{{ p.status }}</span>
       </div>
       {% endfor %}
     </div>
     <p class="hint" id="provider-reason"></p>
 
+    <label class="field-label" for="model_override" style="margin-top:12px;">Model (optional override)</label>
+    <input type="text" id="model_override" placeholder="mock has no model">
+    <p class="hint">Leave blank to use the selected provider's default model.</p>
+
     <div class="section-title">Playback</div>
     <label><input type="checkbox" id="playback_enabled" checked> Play back gradually (~0.5-1.5s per turn) so the meeting is watchable live</label>
   </div>
 
   <div>
-    <div class="section-title">Council (fixed at 6 roles in V0)</div>
-    {% for role in roles %}
+    <div class="section-title">Council (fixed roles in V0)</div>
+    {% for role in debater_roles %}
     <div class="role-card">
       <div class="role-card-head">
         <div class="role-avatar">{{ role.display_name[0] }}</div>
@@ -50,7 +55,24 @@
       </div>
     </div>
     {% endfor %}
-    <p class="locked-note">Role participation is locked to all 6 in V0 (the pipeline and MockProvider script are written for exactly these 6). Skill tags are informational/display metadata for this session - edit defaults on the Roles &amp; Skills page.</p>
+
+    <div class="role-card" style="border-style:dashed;">
+      <div class="role-card-head">
+        <div class="role-avatar">{{ moderator_role.display_name[0] }}</div>
+        <div>
+          <div class="role-name">{{ moderator_role.display_name }}</div>
+          <div class="role-desc">{{ moderator_role.description }}</div>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:6px;">Synthesizes Round 5 consensus - not seated at the table, always included.</p>
+      <div class="skill-tags" data-role="{{ moderator_role.id }}">
+        {% for skill_id in moderator_role.skills %}
+        <span class="skill-tag on" data-skill="{{ skill_id }}">{{ skill_id.replace('_', ' ') }}</span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <p class="locked-note">Role participation is locked in V0 (the pipeline and MockProvider script are written for exactly these 7). Skill tags are informational/display metadata for this session - edit defaults on the Roles &amp; Skills page.</p>
   </div>
 </div>
 
@@ -62,8 +84,8 @@
 
 {% block scripts %}
 <script>
-window.COUNCIL_ROLE_SKILLS = {{ roles | map(attribute='id') | list | tojson }}.reduce(function(acc, id){ acc[id] = []; return acc; }, {});
-document.querySelectorAll('.skill-tags').forEach(function(el){
+window.COUNCIL_ROLE_SKILLS = {{ (debater_roles + [moderator_role]) | map(attribute='id') | list | tojson }}.reduce(function(acc, id){ acc[id] = []; return acc; }, {});
+document.querySelectorAll('.skill-tags[data-role]').forEach(function(el){
   window.COUNCIL_ROLE_SKILLS[el.dataset.role] = Array.from(el.querySelectorAll('.skill-tag.on')).map(function(t){ return t.dataset.skill; });
 });
 </script>

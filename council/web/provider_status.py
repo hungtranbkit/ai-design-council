@@ -1,4 +1,5 @@
-"""Which providers are actually usable right now, for the New Session screen.
+"""Which providers are actually usable right now, for the New Session screen
+and the Role Catalog's runtime/provider badge.
 
 Deliberately conservative/honest: a provider only shows as "ready" if this
 process can actually see credentials for it (or, for Ollama, a live server).
@@ -18,6 +19,17 @@ PROVIDER_INFO = {
     "ollama": "Calls a local Ollama server. Requires `ollama serve` running.",
 }
 
+# Kept in sync with each provider module's own DEFAULT_MODEL / fallback -
+# shown as a placeholder in the New Session model field, and as the Role
+# Catalog's runtime badge. Not imported directly from the provider modules to
+# avoid importing the `anthropic`/`openai` packages just to read a string.
+DEFAULT_MODEL = {
+    "mock": None,
+    "openai": "gpt-6-astra",
+    "anthropic": "claude-opus-5",
+    "ollama": "llama3.1",
+}
+
 
 def _ollama_reachable(base_url: str) -> bool:
     try:
@@ -25,6 +37,13 @@ def _ollama_reachable(base_url: str) -> bool:
             return True
     except (urllib.error.URLError, OSError, ValueError):
         return False
+
+
+def default_provider_name() -> str:
+    """The provider the Role Catalog shows as the pipeline's current shared
+    runtime. V0 runs the whole council on one provider (not per-role) - see
+    the Role Catalog page's note. Override with COUNCIL_DEFAULT_PROVIDER."""
+    return os.environ.get("COUNCIL_DEFAULT_PROVIDER", "mock")
 
 
 def provider_statuses() -> list[dict]:
@@ -42,7 +61,18 @@ def provider_statuses() -> list[dict]:
             base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
             ready = _ollama_reachable(base_url)
             reason = f"Reached {base_url}." if ready else f"Could not reach {base_url} - planned, not active."
+        model = os.environ.get(f"{name.upper()}_MODEL", DEFAULT_MODEL[name])
         statuses.append(
-            {"name": name, "status": "ready" if ready else "planned", "description": description, "reason": reason}
+            {
+                "name": name,
+                "status": "ready" if ready else "planned",
+                "description": description,
+                "reason": reason,
+                "default_model": model,
+            }
         )
     return statuses
+
+
+def provider_status_by_name(name: str) -> dict | None:
+    return next((p for p in provider_statuses() if p["name"] == name), None)

@@ -44,11 +44,20 @@ def created_meeting(client):
 
 
 def test_roles_and_skills_config_are_data_driven(client):
-    roles = client.get("/api/roles").json()["roles"]
+    catalog = client.get("/api/roles").json()
+    roles = catalog["roles"]
     ids = {r["id"] for r in roles}
-    assert ids == {"product_ba", "ux_designer", "architect", "business_critic", "qa_security", "devils_advocate"}
+    # 6 debaters (Rounds 1-4) + the Moderator/ChatGPT Observer (Round 5) = 7.
+    assert ids == {"product_ba", "ux_designer", "architect", "business_critic", "qa_security", "devils_advocate", "moderator"}
     architect = next(r for r in roles if r["id"] == "architect")
     assert "architecture_review" in architect["skills"]
+    assert architect["role_type"] == "debater"
+    assert architect["status"] == "active"
+    assert architect["runtime_provider"] == catalog["default_provider"]
+
+    moderator = next(r for r in roles if r["id"] == "moderator")
+    assert moderator["role_type"] == "moderator"
+    assert "consensus_moderation" in moderator["skills"]
 
     skills = client.get("/api/skills").json()["skills"]
     skill_ids = {s["id"] for s in skills}
@@ -91,16 +100,36 @@ def test_meeting_appears_in_list(client, created_meeting):
 
 
 def test_transcript_filters(client, created_meeting):
-    all_events = client.get(f"/api/meetings/{created_meeting}/transcript?filter=all").json()["events"]
-    mind_changes = client.get(f"/api/meetings/{created_meeting}/transcript?filter=mind_changes").json()["events"]
-    decisions = client.get(f"/api/meetings/{created_meeting}/transcript?filter=decisions").json()["events"]
-    risks = client.get(f"/api/meetings/{created_meeting}/transcript?filter=risks").json()["events"]
+    def events(filter_name):
+        return client.get(f"/api/meetings/{created_meeting}/transcript?filter={filter_name}").json()["events"]
 
+    all_events = events("all")
+    proposals = events("proposal")
+    agrees = events("agree")
+    disagrees = events("disagree")
+    risks = events("risk")
+    mind_changes = events("mind_change")
+    decisions = events("decision")
+    unresolved = events("unresolved")
+
+    assert len(proposals) == 6  # 1 independent proposal per debating role
+    assert all(e["type"] == "proposal" for e in proposals)
+    # "agree" matches the dominant type OR partial agreement inside an
+    # otherwise-disagreeing review - CrossReview's schema forces every review
+    # to disagree/miss-something/propose-a-change, so "agreement" alone is
+    # never the dominant type in practice; see meeting_events.py's comment.
+    assert len(agrees) > 0
+    assert all(e["type"] == "agreement" or e.get("has_agreements") for e in agrees)
+    assert all(e["type"] in ("disagreement", "critique", "proposed_change") for e in disagrees)
     assert len(mind_changes) >= 3  # matches the pipeline's own mind-change guarantee
     assert all(e["type"] == "mind_change" for e in mind_changes)
     assert len(decisions) == 7  # 7 ConsensusItem topics in the mock script
     assert all(e["type"] == "decision" for e in decisions)
+    assert len(unresolved) == 2  # matches metrics.json unresolved_count for this brief
+    assert all(e["type"] == "decision" and e["meta"]["status"] == "unresolved" for e in unresolved)
     assert len(risks) > 0
+    assert all(e["type"] == "risk" or e.get("has_risks") for e in risks)
+    assert len(all_events) > len(mind_changes) + len(decisions)
     assert len(all_events) > len(mind_changes)
 
 
@@ -211,3 +240,48 @@ def test_single_agent_run_is_listed_but_not_a_meeting(client, monkeypatch, tmp_p
     row = next(m for m in meetings if m["run_id"] == "cli-made-run")
     assert row["is_meeting"] is False
     assert row["status"] == "completed"
+
+
+def test_model_override_is_ignored_for_mock_but_forwarded_to_real_providers(client, monkeypatch):
+    """MockProvider() takes no constructor args - passing a model override with
+    provider="mock" must not blow up. A real provider should receive it."""
+    from council.providers.mock import MockProvider
+
+    captured = {}
+    real_get_provider = store.get_provider
+
+    def spy_get_provider(name, **kwargs):
+        captured[name] = kwargs
+        if name == "mock":
+            return MockProvider()
+        return real_get_provider(name, **kwargs)
+
+    monkeypatch.setattr(store, "get_provider", spy_get_provider)
+
+    # provider=mock + a model override: must be silently dropped, not passed to MockProvider().
+    run_id = store.create_meeting(
+        runs_dir=store.DEFAULT_RUNS_DIR,
+        brief_text=BRIEF_TEXT,
+        brief_name="t",
+        provider_name="mock",
+        model="some-model-mock-does-not-take",
+        role_skills={},
+        playback_enabled=False,
+    )
+    assert captured["mock"] == {}
+    meta = json.loads((store.DEFAULT_RUNS_DIR / run_id / "meta.json").read_text())
+    assert meta["model"] is None  # MockProvider has no .model attribute
+
+    # provider=anthropic + a model override: must be forwarded through to the constructor.
+    captured.clear()
+    with pytest.raises(Exception):  # no real ANTHROPIC_API_KEY in the test env - expected to fail here
+        store.create_meeting(
+            runs_dir=store.DEFAULT_RUNS_DIR,
+            brief_text=BRIEF_TEXT,
+            brief_name="t",
+            provider_name="anthropic",
+            model="claude-sonnet-5",
+            role_skills={},
+            playback_enabled=False,
+        )
+    assert captured["anthropic"] == {"model": "claude-sonnet-5"}

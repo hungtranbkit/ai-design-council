@@ -35,6 +35,11 @@ document.addEventListener("click", function (e) {
   if (chip && !chip.classList.contains("disabled")) {
     document.querySelectorAll(".provider-chip").forEach((c) => c.classList.remove("selected"));
     chip.classList.add("selected");
+    const modelInput = document.getElementById("model_override");
+    if (modelInput) {
+      const defaultModel = chip.dataset.defaultModel;
+      modelInput.placeholder = defaultModel ? `Default: ${defaultModel}` : "mock has no model";
+    }
   }
   if (chip && chip.classList.contains("disabled")) {
     document.getElementById("provider-reason").textContent = chip.title;
@@ -62,6 +67,7 @@ if (startBtn) {
     }
     const selectedChip = document.querySelector(".provider-chip.selected");
     const provider = selectedChip ? selectedChip.dataset.provider : "mock";
+    const modelOverride = document.getElementById("model_override").value.trim() || null;
     const playback = document.getElementById("playback_enabled").checked;
 
     startBtn.disabled = true;
@@ -74,6 +80,7 @@ if (startBtn) {
           brief_text: briefText,
           brief_name: "session",
           provider: provider,
+          model: modelOverride,
           role_skills: window.COUNCIL_ROLE_SKILLS || {},
           playback_enabled: playback,
         }),
@@ -214,11 +221,11 @@ function initMeetingRoom(runId) {
       await refreshTranscript();
       await refreshObserver();
       if (status && !status.is_complete) {
-        setTimeout(tick, 2500);
+        setTimeout(tick, 1500);
       }
     } catch (err) {
       console.error(err);
-      setTimeout(tick, 4000);
+      setTimeout(tick, 3000);
     }
   }
   tick();

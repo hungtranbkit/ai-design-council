@@ -48,3 +48,28 @@ def test_meeting_room_and_decisions_pages_render_for_a_real_meeting(client):
 def test_unknown_meeting_room_returns_404_page(client):
     resp = client.get("/meetings/does-not-exist")
     assert resp.status_code == 404
+
+
+def test_role_catalog_page_shows_all_7_roles_with_runtime_and_status(client):
+    resp = client.get("/roles")
+    assert resp.status_code == 200
+    text = resp.text
+    for expected in [
+        "Product / Business Analyst", "UX Designer", "Architect", "Business Critic",
+        "QA + Security", "Devil&#39;s Advocate", "Moderator / ChatGPT Observer",
+    ]:
+        assert expected in text
+    assert "Runtime:" in text
+    assert "Debater · Rounds 1-4" in text
+    assert "Moderator · Round 5" in text
+
+
+def test_new_session_page_shows_moderator_and_model_field_and_no_ollama_chip(client):
+    resp = client.get("/sessions/new")
+    assert resp.status_code == 200
+    text = resp.text
+    assert "Moderator / ChatGPT Observer" in text
+    assert 'id="model_override"' in text
+    assert 'data-provider="mock"' in text
+    assert 'data-provider="anthropic"' in text
+    assert 'data-provider="ollama"' not in text  # scope decision: hidden from the primary picker this phase

@@ -30,13 +30,30 @@ ROUND_LABELS = {
     5: "Consensus",
 }
 
-# Event `type` values, and which quick-filter each belongs to.
+# Event `type` values, and which quick-filter each belongs to. Filter names
+# match the product spec exactly: proposal / agree / disagree / risk /
+# mind_change / decision / unresolved (+ all). "disagree" is broadened to
+# also catch Devil's Advocate critiques and round-2 proposed changes - all
+# three are forms of pushing back on the status quo. Round-4 "defense"
+# responses (defend/partially_accept) aren't given their own chip - they stay
+# visible under "All"; the headline round-4 moments are the mind changes.
+#
+# "agree" needs the same has_* flag treatment as "risk": CrossReview's own
+# schema validator requires at least one of disagree/missing_requirements/
+# proposed_changes on every review (pure agreement is rejected), so
+# "agreement" can never be an event's *dominant* type in practice - a review
+# that partially agrees while still pushing back would otherwise be
+# invisible to this filter. has_agreements catches that partial-agreement
+# content regardless of the event's dominant type.
 FILTER_TYPES = {
     "all": None,  # everything
-    "arguments": {"disagreement", "proposed_change", "critique", "defense"},
-    "risks": {"risk"},  # plus any event with has_risks=True
-    "mind_changes": {"mind_change"},
-    "decisions": {"decision"},
+    "proposal": {"proposal"},
+    "agree": {"agreement"},  # plus any event with has_agreements=True
+    "disagree": {"disagreement", "critique", "proposed_change"},
+    "risk": {"risk"},  # plus any event with has_risks=True
+    "mind_change": {"mind_change"},
+    "decision": {"decision"},  # any status (accepted/rejected/unresolved)
+    "unresolved": {"decision"},  # further filtered to meta.status == "unresolved" below
 }
 
 
@@ -97,6 +114,7 @@ def build_events(run_dir: Path) -> list[dict]:
             "meta": {},
             "has_risks": False,
             "has_disagreement": False,
+            "has_agreements": False,
             "timestamp": None,
         }
         base.update(kwargs)
@@ -164,6 +182,7 @@ def build_events(run_dir: Path) -> list[dict]:
                 details=details,
                 has_risks=bool(review.get("risks")),
                 has_disagreement=bool(review.get("disagree")),
+                has_agreements=bool(review.get("agree")),
                 timestamp=ts,
             )
 
@@ -249,6 +268,10 @@ def events_matching(events: list[dict], filter_name: str) -> list[dict]:
     if filter_name not in FILTER_TYPES or FILTER_TYPES[filter_name] is None:
         return events
     wanted_types = FILTER_TYPES[filter_name]
-    if filter_name == "risks":
+    if filter_name == "risk":
         return [e for e in events if e["type"] in wanted_types or e.get("has_risks")]
+    if filter_name == "agree":
+        return [e for e in events if e["type"] in wanted_types or e.get("has_agreements")]
+    if filter_name == "unresolved":
+        return [e for e in events if e["type"] in wanted_types and e.get("meta", {}).get("status") == "unresolved"]
     return [e for e in events if e["type"] in wanted_types]
