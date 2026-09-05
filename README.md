@@ -1,5 +1,7 @@
 # AI Design Council (V0)
 
+[![tests](https://github.com/hungtranbkit/ai-design-council/actions/workflows/tests.yml/badge.svg)](https://github.com/hungtranbkit/ai-design-council/actions/workflows/tests.yml)
+
 A standalone multi-agent debate pipeline: six AI agent personas independently
 propose a design for a software brief, cross-review each other, get subjected
 to a mandatory Devil's Advocate critique, defend or revise their positions,
