@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=1.30"]
+openai = ["openai>=3.8"]  # needs responses.parse()/text_format (structured outputs)
 anthropic = ["anthropic>=1.4"]  # needs messages.parse()/output_format (structured outputs)
 web = [
     "fastapi>=0.110",

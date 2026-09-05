@@ -15,6 +15,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install package
-        run: pip install -e '.[dev,web,anthropic]'
+        run: pip install -e '.[dev,web,anthropic,openai]'
       - name: Run tests
         run: pytest -q

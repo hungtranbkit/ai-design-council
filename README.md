@@ -74,24 +74,36 @@ own logic (auth check, response mapping, error wrapping for rate
 limits/auth/refusals/schema violations) against a mocked SDK client - no
 network or key needed for those.
 
-`OpenAIProvider` and `OllamaProvider` remain adapter skeletons (call a real
-LLM, hand-parse its JSON against the same pydantic schemas) - not yet wired
-to a structured-output equivalent and not exercised by the test suite.
+**`OpenAIProvider` is fully wired the same way**, via the Responses API's
+structured-output helper (`client.responses.parse(..., text_format=<pydantic
+model>)`) - `response.output_parsed` is validated the same way
+(`model_validate_json` under the hood), so the same business-rule validators
+apply. Defaults to `gpt-6-astra` (OpenAI's recommended flagship as of this
+writing); override with `OPENAI_MODEL` (e.g. `gpt-5.4-mini` for a cheaper
+run). `tests/test_openai_provider.py` covers the adapter's own logic the same
+way as the Anthropic tests - mocked SDK client, no key needed.
 
-### Try Anthropic for real
+`OllamaProvider` remains an adapter skeleton (calls a real local model,
+hand-parses its JSON against the same pydantic schemas) - Ollama's
+OpenAI-compatible endpoint doesn't support the same strict structured-output
+mode, so it's a different (harder) problem than porting the pattern above;
+not yet wired and not exercised by the test suite.
+
+### Try a real provider
 
 ```bash
-pip install -e '.[anthropic]'
-cp .env.example .env   # then fill in ANTHROPIC_API_KEY
-python -m council run --brief examples/qr_restaurant.md --provider anthropic
+pip install -e '.[anthropic]'   # or '.[openai]'
+cp .env.example .env            # fill in ANTHROPIC_API_KEY or OPENAI_API_KEY
+python -m council run --brief examples/qr_restaurant.md --provider anthropic   # or --provider openai
 ```
 
-Cost note: one full council run makes 25 real Claude calls (6 independent
+Cost note: one full council run makes 25 real LLM calls (6 independent
 proposals + 12 cross-reviews + 1 Devil's Advocate pass + 5 defenses + 1
-consensus). At `claude-opus-5` list pricing that's on the order of a few
-cents to low tens of cents per run depending on response length - `metrics.json`
-records the real `tokens_in`/`tokens_out`/`estimated_cost_usd` per run so you
-can see exactly what it cost.
+consensus). At list pricing for the default flagship model on either
+provider, that's on the order of a few cents to low tens of cents per run
+depending on response length - `metrics.json` records the real
+`tokens_in`/`tokens_out`/`estimated_cost_usd` per run so you can see exactly
+what it cost.
 
 ## Install
 
@@ -226,20 +238,21 @@ API (meeting creation, status/transcript/summary payloads, human decisions,
 path-traversal-guarded artifact reads, non-destructive reads), and
 server-rendered page smoke tests.
 
-## Next steps for the remaining providers
+## Next steps for the remaining provider
 
-Anthropic is fully wired (see above). To bring OpenAI and Ollama to the same
-level:
+Anthropic and OpenAI are both fully wired (see above). Only Ollama is left:
 
-1. `pip install -e '.[openai]'`, fill in `.env` from `.env.example`.
-2. `python -m council run --brief examples/qr_restaurant.md --provider openai`
-3. Expect early runs to occasionally fail schema validation, since
-   `OpenAIProvider`/`OllamaProvider` still use the older "ask for JSON in the
-   prompt, strip markdown fences, `json.loads`" approach
-   (`council/providers/_llm_common.py`) rather than a real structured-output
-   API - `AnthropicProvider` shows the more robust pattern to port over
-   (`client.messages.parse(..., output_format=<model>)` and let the SDK
-   validate). OpenAI's Responses API has an equivalent (`response_format` /
-   `client.beta.chat.completions.parse`) worth wiring the same way.
-4. All providers populate `tokens_in`/`tokens_out`/`estimated_cost_usd` from
+1. Ollama's OpenAI-compatible endpoint doesn't expose the same strict
+   structured-output/JSON-schema mode the Anthropic and OpenAI adapters rely
+   on, so `council/providers/ollama_provider.py` still uses the older "ask
+   for JSON in the prompt, strip markdown fences, `json.loads`" approach
+   (`council/providers/_llm_common.py`). Some local models (notably ones with
+   native JSON-schema-constrained decoding support in Ollama, e.g. via its
+   `format` parameter with a JSON schema rather than just `"json"`) can get
+   closer to the same guarantee - worth revisiting once a specific target
+   model is picked.
+2. `pip install -e '.[web]'`'s CLI already reports Ollama as "planned" rather
+   than "ready" in the New Session screen unless a local server actually
+   responds at `OLLAMA_BASE_URL` (see `council/web/provider_status.py`).
+3. All providers populate `tokens_in`/`tokens_out`/`estimated_cost_usd` from
    actual usage once wired - `metrics.json` already has the fields ready.
