@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-design-council"
+version = "0.1.0"
+description = "Multi-agent AI design council: independent proposals, cross-review, devil's advocate, defense, and moderated consensus for software design decisions."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "pydantic>=2.6",
+    "PyYAML>=6.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.30"]
+anthropic = ["anthropic>=0.34"]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+include = ["council*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
