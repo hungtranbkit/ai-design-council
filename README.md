@@ -58,10 +58,40 @@ argues; no code changes needed.
 
 `council/providers/base.py` defines the interface. `MockProvider` (the only
 one required for tests) is a fully offline, deterministic simulation - no
-network, no API key. `OpenAIProvider`, `AnthropicProvider`, and
-`OllamaProvider` are working adapter skeletons that call a real LLM and
-validate its JSON output against the same pydantic schemas; they need a real
-key (or a running Ollama server) and are not exercised by the test suite.
+network, no API key.
+
+**`AnthropicProvider` is fully wired to call real Claude models** via the
+SDK's structured-output helper (`client.messages.parse(..., output_format=<pydantic
+model>)`) - Claude's response is constrained to our own pydantic schema and
+`response.parsed_output` is already a validated instance, including our
+custom business-rule validators (rubber-stamp rejection, "a review must take
+a position", etc. - those run as normal pydantic validation on the parsed
+JSON, so a real model that violates one raises a clear `ProviderError`).
+Defaults to `claude-opus-5`; override with `ANTHROPIC_MODEL` in `.env`
+(e.g. `claude-sonnet-5` for a cheaper run). Not exercised in CI (no key
+configured there), but `tests/test_anthropic_provider.py` covers the adapter's
+own logic (auth check, response mapping, error wrapping for rate
+limits/auth/refusals/schema violations) against a mocked SDK client - no
+network or key needed for those.
+
+`OpenAIProvider` and `OllamaProvider` remain adapter skeletons (call a real
+LLM, hand-parse its JSON against the same pydantic schemas) - not yet wired
+to a structured-output equivalent and not exercised by the test suite.
+
+### Try Anthropic for real
+
+```bash
+pip install -e '.[anthropic]'
+cp .env.example .env   # then fill in ANTHROPIC_API_KEY
+python -m council run --brief examples/qr_restaurant.md --provider anthropic
+```
+
+Cost note: one full council run makes 25 real Claude calls (6 independent
+proposals + 12 cross-reviews + 1 Devil's Advocate pass + 5 defenses + 1
+consensus). At `claude-opus-5` list pricing that's on the order of a few
+cents to low tens of cents per run depending on response length - `metrics.json`
+records the real `tokens_in`/`tokens_out`/`estimated_cost_usd` per run so you
+can see exactly what it cost.
 
 ## Install
 
@@ -196,17 +226,20 @@ API (meeting creation, status/transcript/summary payloads, human decisions,
 path-traversal-guarded artifact reads, non-destructive reads), and
 server-rendered page smoke tests.
 
-## Next steps to wire up a real provider
+## Next steps for the remaining providers
 
-1. `pip install -e '.[anthropic]'` (or `[openai]`), fill in `.env` from
-   `.env.example`.
-2. `python -m council run --brief examples/qr_restaurant.md --provider anthropic`
-3. Expect some early runs to fail schema validation as a real model's JSON
-   drifts from the pydantic schema - `council/providers/_llm_common.py`
-   already strips markdown fences and raises a clear `ProviderError` with the
-   raw text on failure; tightening the JSON-schema instruction or adding a
-   repair-retry loop is the natural next increment, deliberately left out of
-   V0 to keep the pipeline itself simple to audit first.
-4. Real providers will also populate `tokens_in`/`tokens_out`/`estimated_cost_usd`
-   from actual usage instead of the mock's char-count proxy - `metrics.json`
-   already has the fields ready.
+Anthropic is fully wired (see above). To bring OpenAI and Ollama to the same
+level:
+
+1. `pip install -e '.[openai]'`, fill in `.env` from `.env.example`.
+2. `python -m council run --brief examples/qr_restaurant.md --provider openai`
+3. Expect early runs to occasionally fail schema validation, since
+   `OpenAIProvider`/`OllamaProvider` still use the older "ask for JSON in the
+   prompt, strip markdown fences, `json.loads`" approach
+   (`council/providers/_llm_common.py`) rather than a real structured-output
+   API - `AnthropicProvider` shows the more robust pattern to port over
+   (`client.messages.parse(..., output_format=<model>)` and let the SDK
+   validate). OpenAI's Responses API has an equivalent (`response_format` /
+   `client.beta.chat.completions.parse`) worth wiring the same way.
+4. All providers populate `tokens_in`/`tokens_out`/`estimated_cost_usd` from
+   actual usage once wired - `metrics.json` already has the fields ready.
