@@ -71,6 +71,7 @@ def create_meeting(
     provider_name: str,
     role_skills: dict[str, list[str]] | None,
     model: str | None = None,
+    language: str | None = None,
     playback_enabled: bool = True,
 ) -> str:
     # MockProvider() takes no constructor args - only forward an explicit
@@ -89,7 +90,7 @@ def create_meeting(
     )
     artifacts.save_brief(run_dir, brief_text)
 
-    orchestrator = CouncilOrchestrator(provider=provider)
+    orchestrator = CouncilOrchestrator(provider=provider, language=language)
     result = orchestrator.run(brief_text)
     metrics = metrics_mod.compute_council_metrics(result)
     artifacts.save_council_artifacts(run_dir, result)
@@ -98,7 +99,10 @@ def create_meeting(
     report_md = report_mod.render_council_report(run_id=run_dir.name, brief_text=brief_text, result=result, metrics=metrics)
     artifacts.save_final_report(run_dir, report_md)
 
-    artifacts.write_json(run_dir / "session_config.json", {"role_skills": role_skills or {}, "started_at": datetime.now(timezone.utc).isoformat()})
+    artifacts.write_json(
+        run_dir / "session_config.json",
+        {"role_skills": role_skills or {}, "language": language, "started_at": datetime.now(timezone.utc).isoformat()},
+    )
 
     events = meeting_events.build_events(run_dir)
     artifacts.write_json(run_dir / "events.json", events)

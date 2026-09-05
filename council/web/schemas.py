@@ -12,6 +12,7 @@ class NewMeetingRequest(BaseModel):
     brief_name: str = "session"
     provider: str = "mock"
     model: str | None = None  # overrides the provider's default model; ignored for provider="mock"
+    language: str | None = None  # e.g. "vi" - see council.pipeline.orchestrator.LANGUAGE_INSTRUCTIONS
     role_skills: dict[str, list[str]] = Field(default_factory=dict)
     playback_enabled: bool = True
 

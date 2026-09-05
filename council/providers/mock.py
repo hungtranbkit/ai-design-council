@@ -18,6 +18,13 @@ structured `context` dict the orchestrator hands it (prior rounds' parsed
 models, already validated) to decide what a given persona would say *given
 what it has just learned*, including reversing itself on >=1 topic when the
 critique is strong enough - which is the whole point of the exercise.
+
+A second, independent scenario - a Vietnamese-language "SSH Ops Console"
+brief - lives in council/providers/_mock_ssh_ops_scenario.py and is selected
+automatically when the brief text matches its markers (see
+_detect_scenario below). Adding a new scenario module and registering it in
+_SCENARIOS is the whole extension point; nothing else in this file needs to
+change per scenario.
 """
 from __future__ import annotations
 
@@ -25,6 +32,8 @@ import time
 from typing import Any
 
 from pydantic import BaseModel
+
+from council.providers import _mock_ssh_ops_scenario as _ssh_ops
 
 from council.pipeline.schemas import (
     ChangedDecision,
@@ -801,6 +810,41 @@ _SOLO_DESIGN = SoloDesign(
     ],
 )
 
+# ---------------------------------------------------------------------------
+# Scenario registry - brief-content-based dispatch (see module docstring).
+# Adding a scenario: write a module like _mock_ssh_ops_scenario.py, then
+# register it here. Nothing else in this file changes per scenario.
+# ---------------------------------------------------------------------------
+
+_SCENARIOS: dict[str, dict[str, Any]] = {
+    "qr_restaurant": {
+        "round1": _ROUND1,
+        "round2": _ROUND2,
+        "round3": _round3_devils_advocate,
+        "round4": _ROUND4,
+        "round5": _round5_consensus,
+    },
+    _ssh_ops.SCENARIO_ID: {
+        "round1": _ssh_ops.ROUND1,
+        "round2": _ssh_ops.ROUND2,
+        "round3": _ssh_ops.build_devils_advocate_report,
+        "round4": _ssh_ops.ROUND4,
+        "round5": _ssh_ops.build_consensus_report,
+    },
+}
+_DEFAULT_SCENARIO = "qr_restaurant"
+
+
+def _detect_scenario(context: dict[str, Any]) -> str:
+    """Picks a scenario purely from the brief text in `context["brief"]` -
+    present on every round's context (see orchestrator.py). Defaults to the
+    original QR-restaurant scenario so every existing call site/test that
+    doesn't mention the SSH scenario's markers is completely unaffected."""
+    brief = (context.get("brief") or "").lower()
+    if any(marker in brief for marker in _ssh_ops.MARKERS):
+        return _ssh_ops.SCENARIO_ID
+    return _DEFAULT_SCENARIO
+
 
 class MockProvider(Provider):
     """Deterministic offline provider implementing the interface in base.Provider."""
@@ -847,28 +891,32 @@ class MockProvider(Provider):
         if response_model is SoloDesign:
             return _SOLO_DESIGN.model_copy(deep=True)
 
+        scenario = _SCENARIOS[_detect_scenario(context)]
+
         if round_num == 1:
-            if role not in _ROUND1:
+            round1 = scenario["round1"]
+            if role not in round1:
                 raise KeyError(f"MockProvider has no round-1 script for role '{role}'")
-            return _ROUND1[role].model_copy(deep=True)
+            return round1[role].model_copy(deep=True)
 
         if round_num == 2:
             reviewer = role
             target = context.get("target_role")
-            table = _ROUND2.get(reviewer, {})
+            table = scenario["round2"].get(reviewer, {})
             if target not in table:
                 raise KeyError(f"MockProvider has no round-2 script for reviewer='{reviewer}' target='{target}'")
             return table[target].model_copy(deep=True)
 
         if round_num == 3:
-            return _round3_devils_advocate()
+            return scenario["round3"]()
 
         if round_num == 4:
-            if role not in _ROUND4:
+            round4 = scenario["round4"]
+            if role not in round4:
                 raise KeyError(f"MockProvider has no round-4 script for role '{role}'")
-            return _ROUND4[role]()
+            return round4[role]()
 
         if round_num == 5:
-            return _round5_consensus()
+            return scenario["round5"]()
 
         raise ValueError(f"MockProvider does not support round {round_num}")

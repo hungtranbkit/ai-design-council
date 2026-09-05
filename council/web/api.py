@@ -57,6 +57,7 @@ def api_create_meeting(body: NewMeetingRequest):
             brief_name=body.brief_name,
             provider_name=body.provider,
             model=body.model,
+            language=body.language,
             role_skills=body.role_skills,
             playback_enabled=body.playback_enabled,
         )

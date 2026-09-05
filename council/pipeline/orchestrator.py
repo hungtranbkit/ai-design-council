@@ -61,16 +61,36 @@ class CouncilRunResult:
     wall_time_seconds: float = 0.0
 
 
+# Optional response-language instruction, prepended to each role's
+# system_prompt when CouncilOrchestrator(..., language=<key>) is set. This is
+# the lightest possible hook for a real LLM provider (Anthropic/OpenAI) to
+# answer in a given language - it changes nothing about the schemas, the
+# round structure, or MockProvider (which ignores system_prompt entirely and
+# dispatches purely off the brief's content - see providers/mock.py). Adding
+# a language only means adding an entry here.
+LANGUAGE_INSTRUCTIONS: dict[str, str] = {
+    "vi": (
+        "Hãy trả lời bằng tiếng Việt tự nhiên, dễ đọc. Chỉ giữ nguyên thuật ngữ kỹ thuật tiếng Anh "
+        "khi thực sự cần thiết (ví dụ tên công nghệ, giao thức). Toàn bộ nội dung structured output "
+        "(summary, requirements, decisions, risks, rationale, v.v.) đều phải bằng tiếng Việt."
+    ),
+}
+
+
 class CouncilOrchestrator:
-    def __init__(self, provider: Provider, roles: list[RoleConfig] | None = None):
+    def __init__(self, provider: Provider, roles: list[RoleConfig] | None = None, language: str | None = None):
         self.provider = provider
         self.roles: dict[str, RoleConfig] = {r.id: r for r in (roles or load_council_roles())}
         self.moderator = load_moderator()
+        self.language = language
         self._calls: list[CallRecord] = []
 
     # -- internal -----------------------------------------------------------
 
     def _call(self, *, role: str, round_num: int, system_prompt: str, user_prompt: str, response_model, context: dict[str, Any]):
+        language_instruction = LANGUAGE_INSTRUCTIONS.get(self.language or "")
+        if language_instruction:
+            system_prompt = f"{language_instruction}\n\n{system_prompt}"
         resp: ProviderResponse = self.provider.complete(
             role=role,
             round_num=round_num,
